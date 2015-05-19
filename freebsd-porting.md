@@ -21,23 +21,24 @@ First we get the sources
     cd src/docker/docker
     git remote set-url origin https://github.com/kvasdopil/docker.git
     git pull
-    cd ../../..
-
+    
 Now build the docker
 
     sh hack/make/.go-autogen
+    cd ../../..
     cp -rp src/github.com/docker/docker/vendor/* .
     go build -tags daemon github.com/docker/docker/docker/docker
 
 This should build the docker executable in current directory. You can run docker with command:
     
-    zfs create -o mountpoint=/dk zroot/docker # this should be short!
+    zfs create -o mountpoint=/dk zroot/docker # mounpoint should be short
     ./docker -d -b none -e jail -s zfs -g /dk -D
 
 After the daemon is started we can pull the image and start the container
 
-   ./docker pull kazuyoshi/freebsd-minimal
-   ./docker run freebsd kazuyoshi/freebsd-minimal uuidgen
+    ./docker pull kazuyoshi/freebsd-minimal
+    ./docker run freebsd kazuyoshi/freebsd-minimal echo hello world
    
-So as we see, container can start and run a program, but running background processes is impossible now (work in progress).
+So containers can be created and started successfully, but interactive applications like csh are not working. 
+
 
