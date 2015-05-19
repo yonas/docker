@@ -1,4 +1,4 @@
-// +build !freebsd
+// +build freebsd
 
 package bridge
 
@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/daemon/networkdriver/ipallocator"
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/iptables"
+	//"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/libcontainer/netlink"
@@ -347,81 +347,81 @@ func InitDriver(config *Config) error {
 func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 	// Enable NAT
 
-	if ipmasq {
-		natArgs := []string{"-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
+	// if ipmasq {
+	// 	natArgs := []string{"-s", addr.String(), "!", "-o", bridgeIface, "-j", "MASQUERADE"}
 
-		if !iptables.Exists(iptables.Nat, "POSTROUTING", natArgs...) {
-			if output, err := iptables.Raw(append([]string{
-				"-t", string(iptables.Nat), "-I", "POSTROUTING"}, natArgs...)...); err != nil {
-				return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
-			} else if len(output) != 0 {
-				return iptables.ChainError{Chain: "POSTROUTING", Output: output}
-			}
-		}
-	}
+	// 	if !iptables.Exists(iptables.Nat, "POSTROUTING", natArgs...) {
+	// 		if output, err := iptables.Raw(append([]string{
+	// 			"-t", string(iptables.Nat), "-I", "POSTROUTING"}, natArgs...)...); err != nil {
+	// 			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+	// 		} else if len(output) != 0 {
+	// 			return iptables.ChainError{Chain: "POSTROUTING", Output: output}
+	// 		}
+	// 	}
+	// }
 
-	var (
-		args       = []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
-		acceptArgs = append(args, "ACCEPT")
-		dropArgs   = append(args, "DROP")
-	)
+	// var (
+	// 	args       = []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
+	// 	acceptArgs = append(args, "ACCEPT")
+	// 	dropArgs   = append(args, "DROP")
+	// )
 
-	if !icc {
-		iptables.Raw(append([]string{"-D", "FORWARD"}, acceptArgs...)...)
+	// if !icc {
+	// 	iptables.Raw(append([]string{"-D", "FORWARD"}, acceptArgs...)...)
 
-		if !iptables.Exists(iptables.Filter, "FORWARD", dropArgs...) {
-			logrus.Debugf("Disable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-A", "FORWARD"}, dropArgs...)...); err != nil {
-				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
-			} else if len(output) != 0 {
-				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
-			}
-		}
-	} else {
-		iptables.Raw(append([]string{"-D", "FORWARD"}, dropArgs...)...)
+	// 	if !iptables.Exists(iptables.Filter, "FORWARD", dropArgs...) {
+	// 		logrus.Debugf("Disable inter-container communication")
+	// 		if output, err := iptables.Raw(append([]string{"-A", "FORWARD"}, dropArgs...)...); err != nil {
+	// 			return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+	// 		} else if len(output) != 0 {
+	// 			return fmt.Errorf("Error disabling intercontainer communication: %s", output)
+	// 		}
+	// 	}
+	// } else {
+	// 	iptables.Raw(append([]string{"-D", "FORWARD"}, dropArgs...)...)
 
-		if !iptables.Exists(iptables.Filter, "FORWARD", acceptArgs...) {
-			logrus.Debugf("Enable inter-container communication")
-			if output, err := iptables.Raw(append([]string{"-A", "FORWARD"}, acceptArgs...)...); err != nil {
-				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
-			} else if len(output) != 0 {
-				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
-			}
-		}
-	}
+	// 	if !iptables.Exists(iptables.Filter, "FORWARD", acceptArgs...) {
+	// 		logrus.Debugf("Enable inter-container communication")
+	// 		if output, err := iptables.Raw(append([]string{"-A", "FORWARD"}, acceptArgs...)...); err != nil {
+	// 			return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
+	// 		} else if len(output) != 0 {
+	// 			return fmt.Errorf("Error enabling intercontainer communication: %s", output)
+	// 		}
+	// 	}
+	// }
 
-	// In hairpin mode, masquerade traffic from localhost
-	if hairpinMode {
-		masqueradeArgs := []string{"-t", "nat", "-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
-		if !iptables.Exists(iptables.Filter, "POSTROUTING", masqueradeArgs...) {
-			if output, err := iptables.Raw(append([]string{"-I", "POSTROUTING"}, masqueradeArgs...)...); err != nil {
-				return fmt.Errorf("Unable to masquerade local traffic: %s", err)
-			} else if len(output) != 0 {
-				return fmt.Errorf("Error iptables masquerade local traffic: %s", output)
-			}
-		}
-	}
+	// // In hairpin mode, masquerade traffic from localhost
+	// if hairpinMode {
+	// 	masqueradeArgs := []string{"-t", "nat", "-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
+	// 	if !iptables.Exists(iptables.Filter, "POSTROUTING", masqueradeArgs...) {
+	// 		if output, err := iptables.Raw(append([]string{"-I", "POSTROUTING"}, masqueradeArgs...)...); err != nil {
+	// 			return fmt.Errorf("Unable to masquerade local traffic: %s", err)
+	// 		} else if len(output) != 0 {
+	// 			return fmt.Errorf("Error iptables masquerade local traffic: %s", output)
+	// 		}
+	// 	}
+	// }
 
-	// Accept all non-intercontainer outgoing packets
-	outgoingArgs := []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
-	if !iptables.Exists(iptables.Filter, "FORWARD", outgoingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, outgoingArgs...)...); err != nil {
-			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
-		} else if len(output) != 0 {
-			return iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
-		}
-	}
+	// // Accept all non-intercontainer outgoing packets
+	// outgoingArgs := []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
+	// if !iptables.Exists(iptables.Filter, "FORWARD", outgoingArgs...) {
+	// 	if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, outgoingArgs...)...); err != nil {
+	// 		return fmt.Errorf("Unable to allow outgoing packets: %s", err)
+	// 	} else if len(output) != 0 {
+	// 		return iptables.ChainError{Chain: "FORWARD outgoing", Output: output}
+	// 	}
+	// }
 
-	// Accept incoming packets for existing connections
-	existingArgs := []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+	// // Accept incoming packets for existing connections
+	// existingArgs := []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
 
-	if !iptables.Exists(iptables.Filter, "FORWARD", existingArgs...) {
-		if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, existingArgs...)...); err != nil {
-			return fmt.Errorf("Unable to allow incoming packets: %s", err)
-		} else if len(output) != 0 {
-			return iptables.ChainError{Chain: "FORWARD incoming", Output: output}
-		}
-	}
+	// if !iptables.Exists(iptables.Filter, "FORWARD", existingArgs...) {
+	// 	if output, err := iptables.Raw(append([]string{"-I", "FORWARD"}, existingArgs...)...); err != nil {
+	// 		return fmt.Errorf("Unable to allow incoming packets: %s", err)
+	// 	} else if len(output) != 0 {
+	// 		return iptables.ChainError{Chain: "FORWARD incoming", Output: output}
+	// 	}
+	// }
 	return nil
 }
 

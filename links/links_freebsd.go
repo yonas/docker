@@ -1,4 +1,4 @@
-// +build !freebsd
+// +build freebsd
 
 package links
 
@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/iptables"
+	//"github.com/docker/docker/pkg/iptables"
 )
 
 type Link struct {
@@ -147,7 +147,7 @@ func (l *Link) Enable() error {
 		return err
 	}
 	// call this on Firewalld reload
-	iptables.OnReloaded(func() { l.toggle("-A", false) })
+	//iptables.OnReloaded(func() { l.toggle("-A", false) })
 	l.IsEnabled = true
 	return nil
 }
@@ -158,7 +158,7 @@ func (l *Link) Disable() {
 	// -D == iptables delete flag
 	l.toggle("-D", true)
 	// call this on Firewalld reload
-	iptables.OnReloaded(func() { l.toggle("-D", true) })
+	//iptables.OnReloaded(func() { l.toggle("-D", true) })
 	l.IsEnabled = false
 }
 

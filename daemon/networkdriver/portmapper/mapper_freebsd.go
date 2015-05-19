@@ -1,4 +1,4 @@
-// +build !freebsd
+// +build freebsd
 
 package portmapper
 
@@ -10,7 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
-	"github.com/docker/docker/pkg/iptables"
+	//"github.com/docker/docker/pkg/iptables"
 )
 
 type mapping struct {
@@ -29,7 +29,7 @@ var (
 )
 
 type PortMapper struct {
-	chain *iptables.Chain
+	chain *int //iptables.Chain
 
 	// udp:ip:port
 	currentMappings map[string]*mapping
@@ -49,7 +49,7 @@ func NewWithPortAllocator(allocator *portallocator.PortAllocator) *PortMapper {
 	}
 }
 
-func (pm *PortMapper) SetIptablesChain(c *iptables.Chain) {
+func (pm *PortMapper) SetIptablesChain(c *int ) { //iptables.Chain) {
 	pm.chain = c
 }
 
@@ -111,19 +111,21 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, usePr
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
-	if err := pm.forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
-		return nil, err
-	}
+	// removed by @kvasdopil
+	// if err := pm.forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
+	// 	return nil, err
+	// }
 
 	cleanup := func() error {
 		// need to undo the iptables rules before we return
 		if m.userlandProxy != nil {
 			m.userlandProxy.Stop()
 		}
-		pm.forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
-		if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
-			return err
-		}
+		// removed by @kvasdopil
+		//pm.forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		//if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
+		//	return err
+		//}
 
 		return nil
 	}
@@ -147,9 +149,10 @@ func (pm *PortMapper) ReMapAll() {
 	for _, data := range pm.currentMappings {
 		containerIP, containerPort := getIPAndPort(data.container)
 		hostIP, hostPort := getIPAndPort(data.host)
-		if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-			logrus.Errorf("Error on iptables add: %s", err)
-		}
+		// removed by @kvasdopil
+		// if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
+		// 	logrus.Errorf("Error on iptables add: %s", err)
+		// }
 	}
 }
 
@@ -171,9 +174,10 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
-	if err := pm.forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		logrus.Errorf("Error on iptables delete: %s", err)
-	}
+	// removed by @kvasdopil
+	// if err := pm.forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
+	// 	logrus.Errorf("Error on iptables delete: %s", err)
+	// }
 
 	switch a := host.(type) {
 	case *net.TCPAddr:
@@ -204,9 +208,10 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 	return nil, 0
 }
 
-func (pm *PortMapper) forward(action iptables.Action, proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
-	if pm.chain == nil {
-		return nil
-	}
-	return pm.chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
-}
+// removed by @kvasdopil
+// func (pm *PortMapper) forward(action iptables.Action, proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
+// 	if pm.chain == nil {
+// 		return nil
+// 	}
+// 	return pm.chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
+// }
