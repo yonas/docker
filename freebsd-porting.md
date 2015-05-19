@@ -29,5 +29,6 @@ Now build the docker
     cp -rp src/github.com/docker/docker/vendor/* .
     go build -tags daemon github.com/docker/docker/docker/docker
 
-This should build the docker executable in current directory
+This should build the docker executable in current directory. You can run docker with command:
     
+    ./docker -d -b none -e jail -s zfs
