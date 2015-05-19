@@ -1,12 +1,12 @@
 package jail
 
 import (
-	//"fmt"
+	"fmt"
 	"io/ioutil"
 	//"log"
 	"os"
 	"os/exec"
-	"path"
+	//"path"
 	//"runtime"
 	"syscall"
 
@@ -72,55 +72,138 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// if err := execdriver.SetTerminal(c, pipes); err != nil {
 	// 	return -1, err
 	// }
+	var (
+		term    execdriver.Terminal
+		err 		error
+	)
+
+	term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+	c.ProcessConfig.Terminal = term
 
 	logrus.Info("running jail")
 
+	
+
+	// init := path.Join(root, ".dockerinit")
+	// if err := copyFile(os.Args[0], init); err != nil {
+	// 	return execdriver.ExitStatus{ExitCode: -1}, err
+	// }
+
+	// // create /dev
 	root := c.Rootfs
+	// devDir := path.Join(root, "dev")
+	// if err := os.MkdirAll(devDir, 0755); err != nil {
+	// 	return execdriver.ExitStatus{ExitCode: -1}, err
+	// }
 
-	init := path.Join(root, ".dockerinit")
-	if err := copyFile(os.Args[0], init); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
-	}
-
-	devDir := path.Join(root, "dev")
-	if err := os.MkdirAll(devDir, 0755); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
-	}
-
+	// build params for the jail
 	params := []string{
 		"/usr/sbin/jail",
 		"-c",
 		"name=" + c.ID,
-		"path=" + root,
-		//"command=" + c.InitPath,
+		"path=" + root,		
 	}
 
-	// if c.ProcessConfig.User != "" {
-	// 	params = append(params, "-u", c.ProcessConfig.User)
-	// }
-
-	// if c.ProcessConfig.Privileged {
-	// 	params = append(params, "-privileged")
-	// }
-
-	// if c.WorkingDir != "" {
-	// 	params = append(params, "-w", c.WorkingDir)
-	// }
-
-	params = append(params, "command=csh")//, c.ProcessConfig.Entrypoint)
-	//params = append(params, c.ProcessConfig.Arguments...)
+	params = append(params, fmt.Sprintf("command=%s", c.ProcessConfig.Entrypoint))
 
 	c.ProcessConfig.Path = "/usr/sbin/jail"
 	c.ProcessConfig.Args = params
 
 	logrus.Debugf("jail params %s", params)
 
-	if err := c.ProcessConfig.Run(); err != nil {
+	if err := c.ProcessConfig.Start(); err != nil {
 		logrus.Infof("jail failed %s", err)
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
-	return execdriver.ExitStatus{getExitCode(c), false}, nil
+	logrus.Debug("jail started");
+
+  //=====
+
+
+	var (
+		waitErr  error
+		waitLock = make(chan struct{})
+	)
+
+	go func() {
+		if err := c.ProcessConfig.Wait(); err != nil {
+			if _, ok := err.(*exec.ExitError); !ok { // Do not propagate the error if it's simply a status code != 0
+				waitErr = err
+			}
+		}
+		close(waitLock)
+	}()
+
+	var pid int
+	var exitCode int
+
+	// terminate := func(terr error) (execdriver.ExitStatus, error) {
+	// 	if c.ProcessConfig.Process != nil {
+	// 		c.ProcessConfig.Process.Kill()
+	// 		c.ProcessConfig.Wait()
+	// 	}
+	// 	return execdriver.ExitStatus{ExitCode: -1}, terr
+	// }
+	// // Poll lxc for RUNNING status
+	// pid, err := d.waitForStart(c, waitLock)
+	// if err != nil {
+	// 	return terminate(err)
+	// }
+
+	// cgroupPaths, err := cgroupPaths(c.ID)
+	// if err != nil {
+	// 	return terminate(err)
+	// }
+
+	// state := &libcontainer.State{
+	// 	InitProcessPid: pid,
+	// 	CgroupPaths:    cgroupPaths,
+	// }
+
+	// f, err := os.Create(filepath.Join(dataPath, "state.json"))
+	// if err != nil {
+	// 	return terminate(err)
+	// }
+	// defer f.Close()
+
+	// if err := json.NewEncoder(f).Encode(state); err != nil {
+	// 	return terminate(err)
+	// }
+
+	c.ContainerPid = pid
+
+	if startCallback != nil {
+		logrus.Debugf("Invoking startCallback")
+		startCallback(&c.ProcessConfig, pid)
+	}
+
+	// oomKill := false
+	// oomKillNotification, err := notifyOnOOM(cgroupPaths)
+
+	// <-waitLock
+	// exitCode := getExitCode(c)
+
+	// if err == nil {
+	// 	_, oomKill = <-oomKillNotification
+	// 	logrus.Debugf("oomKill error: %v, waitErr: %v", oomKill, waitErr)
+	// } else {
+	// 	logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
+	// }
+
+	// // check oom error
+	// if oomKill {
+	// 	exitCode = 137
+	// }
+
+	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: false}, waitErr
+
+  //=====
+
+	//return execdriver.ExitStatus{getExitCode(c), false}, nil
 }
 
 func getExitCode(c *execdriver.Command) int {
