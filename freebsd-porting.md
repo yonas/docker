@@ -4,7 +4,7 @@ Major milestones for porting docker on FreeBSD are:
 * make it compile (DONE)
 * make it start as a daemon (DONE)
 * load an image and create the container (aka working graphdriver) (DONE)
-* run the container 
+* run the container (IN PROGRESS)
 * working top\start\stop\kill (aka working execdriver)
 * working networking aka NAT
 * working port forward (aka working networkdriver)
@@ -31,14 +31,13 @@ Now build the docker
 
 This should build the docker executable in current directory. You can run docker with command:
     
-    zfs create zroot/docker -o mountpoint=/dk # this should be short!
+    zfs create -o mountpoint=/dk zroot/docker # this should be short!
     ./docker -d -b none -e jail -s zfs -g /dk -D
 
 After the daemon is started we can pull the image and start the container
 
    ./docker pull kazuyoshi/freebsd-minimal
-   ./docker create --name freebsd kazuyoshi/freebsd-minimal /bin/csh
-   ./docker ps -a # should show the container
-
-   ./docker start freebsd # this fails now
+   ./docker run freebsd kazuyoshi/freebsd-minimal uuidgen
+   
+So as we see, container can start and run a program, but running background processes is impossible now (work in progress).
 
