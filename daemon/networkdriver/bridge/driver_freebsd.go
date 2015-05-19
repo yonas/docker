@@ -233,11 +233,11 @@ func InitDriver(config *Config) error {
 		bridgeIPv6Addr = networkv6.IP
 	}
 
-	if config.EnableIptables {
-		if err := iptables.FirewalldInit(); err != nil {
-			logrus.Debugf("Error initializing firewalld: %v", err)
-		}
-	}
+	// if config.EnableIptables {
+	// 	if err := iptables.FirewalldInit(); err != nil {
+	// 		logrus.Debugf("Error initializing firewalld: %v", err)
+	// 	}
+	// }
 
 	// Configure iptables for link support
 	if config.EnableIptables {
@@ -246,7 +246,7 @@ func InitDriver(config *Config) error {
 			return err
 		}
 		// call this on Firewalld reload
-		iptables.OnReloaded(func() { setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq) })
+		//iptables.OnReloaded(func() { setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq) })
 	}
 
 	if config.EnableIpForward {
@@ -275,26 +275,26 @@ func InitDriver(config *Config) error {
 	}
 
 	// We can always try removing the iptables
-	if err := iptables.RemoveExistingChain("DOCKER", iptables.Nat); err != nil {
-		return err
-	}
+	// if err := iptables.RemoveExistingChain("DOCKER", iptables.Nat); err != nil {
+	// 	return err
+	// }
 
-	if config.EnableIptables {
-		_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Nat, hairpinMode)
-		if err != nil {
-			return err
-		}
-		// call this on Firewalld reload
-		iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Nat, hairpinMode) })
-		chain, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter, hairpinMode)
-		if err != nil {
-			return err
-		}
-		// call this on Firewalld reload
-		iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Filter, hairpinMode) })
+	// if config.EnableIptables {
+	// 	_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Nat, hairpinMode)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	// call this on Firewalld reload
+	// 	iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Nat, hairpinMode) })
+	// 	chain, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter, hairpinMode)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	// call this on Firewalld reload
+	// 	iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Filter, hairpinMode) })
 
-		portMapper.SetIptablesChain(chain)
-	}
+	// 	portMapper.SetIptablesChain(chain)
+	// }
 
 	bridgeIPv4Network = networkv4
 	if config.FixedCIDR != "" {
@@ -337,9 +337,9 @@ func InitDriver(config *Config) error {
 	// Block BridgeIP in IP allocator
 	ipAllocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
 
-	if config.EnableIptables {
-		iptables.OnReloaded(portMapper.ReMapAll) // call this on Firewalld reload
-	}
+	// if config.EnableIptables {
+	// 	iptables.OnReloaded(portMapper.ReMapAll) // call this on Firewalld reload
+	// }
 
 	return nil
 }
@@ -781,33 +781,33 @@ func AllocatePort(id string, port nat.Port, binding nat.PortBinding) (nat.PortBi
 
 //TODO: should it return something more than just an error?
 func LinkContainers(action, parentIP, childIP string, ports []nat.Port, ignoreErrors bool) error {
-	var nfAction iptables.Action
+	// var nfAction iptables.Action
 
-	switch action {
-	case "-A":
-		nfAction = iptables.Append
-	case "-I":
-		nfAction = iptables.Insert
-	case "-D":
-		nfAction = iptables.Delete
-	default:
-		return fmt.Errorf("Invalid action '%s' specified", action)
-	}
+	// switch action {
+	// case "-A":
+	// 	nfAction = iptables.Append
+	// case "-I":
+	// 	nfAction = iptables.Insert
+	// case "-D":
+	// 	nfAction = iptables.Delete
+	// default:
+	// 	return fmt.Errorf("Invalid action '%s' specified", action)
+	// }
 
-	ip1 := net.ParseIP(parentIP)
-	if ip1 == nil {
-		return fmt.Errorf("Parent IP '%s' is invalid", parentIP)
-	}
-	ip2 := net.ParseIP(childIP)
-	if ip2 == nil {
-		return fmt.Errorf("Child IP '%s' is invalid", childIP)
-	}
+	// ip1 := net.ParseIP(parentIP)
+	// if ip1 == nil {
+	// 	return fmt.Errorf("Parent IP '%s' is invalid", parentIP)
+	// }
+	// ip2 := net.ParseIP(childIP)
+	// if ip2 == nil {
+	// 	return fmt.Errorf("Child IP '%s' is invalid", childIP)
+	// }
 
-	chain := iptables.Chain{Name: "DOCKER", Bridge: bridgeIface}
-	for _, port := range ports {
-		if err := chain.Link(nfAction, ip1, ip2, port.Int(), port.Proto()); !ignoreErrors && err != nil {
-			return err
-		}
-	}
+	// chain := iptables.Chain{Name: "DOCKER", Bridge: bridgeIface}
+	// for _, port := range ports {
+	// 	if err := chain.Link(nfAction, ip1, ip2, port.Int(), port.Proto()); !ignoreErrors && err != nil {
+	// 		return err
+	// 	}
+	// }
 	return nil
 }

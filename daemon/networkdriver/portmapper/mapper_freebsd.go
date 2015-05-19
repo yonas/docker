@@ -110,8 +110,8 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, usePr
 		return nil, ErrPortMappedForIP
 	}
 
-	containerIP, containerPort := getIPAndPort(m.container)
 	// removed by @kvasdopil
+	//containerIP, containerPort := getIPAndPort(m.container)
 	// if err := pm.forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
 	// 	return nil, err
 	// }
@@ -146,14 +146,14 @@ func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, usePr
 // re-apply all port mappings
 func (pm *PortMapper) ReMapAll() {
 	logrus.Debugln("Re-applying all port mappings.")
-	for _, data := range pm.currentMappings {
-		containerIP, containerPort := getIPAndPort(data.container)
-		hostIP, hostPort := getIPAndPort(data.host)
-		// removed by @kvasdopil
-		// if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		// 	logrus.Errorf("Error on iptables add: %s", err)
-		// }
-	}
+	// removed by @kvasdopil
+	// for _, data := range pm.currentMappings {				
+	// 	containerIP, containerPort := getIPAndPort(data.container)		
+	// 	hostIP, hostPort := getIPAndPort(data.host)
+	// 	if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
+	// 		logrus.Errorf("Error on iptables add: %s", err)
+	// 	}
+	// }
 }
 
 func (pm *PortMapper) Unmap(host net.Addr) error {
@@ -172,9 +172,9 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 
 	delete(pm.currentMappings, key)
 
-	containerIP, containerPort := getIPAndPort(data.container)
-	hostIP, hostPort := getIPAndPort(data.host)
 	// removed by @kvasdopil
+	// containerIP, containerPort := getIPAndPort(data.container)	
+	// hostIP, hostPort := getIPAndPort(data.host)
 	// if err := pm.forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
 	// 	logrus.Errorf("Error on iptables delete: %s", err)
 	// }

@@ -1,4 +1,4 @@
-// +build !freebsd
+// +build freebsd
 
 package portmapper
 
@@ -107,9 +107,10 @@ func NewProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 		cmd: &exec.Cmd{
 			Path: reexec.Self(),
 			Args: args,
-			SysProcAttr: &syscall.SysProcAttr{
-				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the daemon process dies
-			},
+			// FIXME: factor out to single file
+			// SysProcAttr: &syscall.SysProcAttr{
+			// 	Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the daemon process dies
+			// },
 		},
 	}
 }
