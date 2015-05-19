@@ -108,7 +108,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// }
 
 	params = append(params, "command=csh")//, c.ProcessConfig.Entrypoint)
-	params = append(params, c.ProcessConfig.Arguments...)
+	//params = append(params, c.ProcessConfig.Arguments...)
 
 	c.ProcessConfig.Path = "/usr/sbin/jail"
 	c.ProcessConfig.Args = params
