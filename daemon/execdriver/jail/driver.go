@@ -1,7 +1,7 @@
 package jail
 
 import (
-	"fmt"
+	//"fmt"
 	"io/ioutil"
 	//"log"
 	"os"
@@ -104,10 +104,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"/usr/sbin/jail",
 		"-c",
 		"name=" + c.ID,
-		"path=" + root,		
+		"path=" + root,
+		"mount.devfs=1",
+		"command=" + c.ProcessConfig.Entrypoint,
 	}
 
-	params = append(params, fmt.Sprintf("command=%s", c.ProcessConfig.Entrypoint))
+	params = append(params, c.ProcessConfig.Arguments...)
 
 	c.ProcessConfig.Path = "/usr/sbin/jail"
 	c.ProcessConfig.Args = params
@@ -139,7 +141,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}()
 
 	var pid int
-	var exitCode int
 
 	// terminate := func(terr error) (execdriver.ExitStatus, error) {
 	// 	if c.ProcessConfig.Process != nil {
@@ -184,8 +185,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// oomKill := false
 	// oomKillNotification, err := notifyOnOOM(cgroupPaths)
 
-	// <-waitLock
-	// exitCode := getExitCode(c)
+	<-waitLock
+	exitCode := getExitCode(c)
 
 	// if err == nil {
 	// 	_, oomKill = <-oomKillNotification
@@ -214,34 +215,47 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
+	logrus.Debugf("jail kill %d %s", sig, c.ID)
+
+	if err := exec.Command("jail", "-r", c.ID).Run(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
+	logrus.Debug("jail pause")
 	return nil
 }
 
 func (d *driver) Unpause(c *execdriver.Command) error {
+	logrus.Debug("jail unpause")
 	return nil
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
+	logrus.Debug("jail term")
 	return nil
 }
 
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
+	logrus.Debugf("jail ps %s", id)
 	return nil, nil
 }
 
 func (d *driver) Clean(id string) error {
+	logrus.Debugf("jail clean %s", id)
 	return nil
 }
 
 func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	logrus.Debugf("jail exec")
 	return 0, nil
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error)  {
+	logrus.Debugf("jail stats %s", id)
 	return nil, nil
 }
 
@@ -255,6 +269,8 @@ func (d *driver) Info(id string) execdriver.Info {
 }
 
 func (info *info) IsRunning() bool {
+	logrus.Debugf("jail isrunning")
+
 	if err := exec.Command("jls", "-j", info.ID).Run(); err != nil {
 		return true
 	}
