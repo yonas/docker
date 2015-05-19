@@ -1,4 +1,4 @@
-// +build !exclude_graphdriver_zfs,linux
+// +build !exclude_graphdriver_zfs,linux,freebsd
 
 package daemon
 

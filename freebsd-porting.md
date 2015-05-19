@@ -25,6 +25,7 @@ First we get the sources
 
 Now build the docker
 
+    sh hack/make/.go-autogen
     cp -rp src/github.com/docker/docker/vendor/* .
     go build -tags daemon github.com/docker/docker/docker/docker
 
