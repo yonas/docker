@@ -33,3 +33,9 @@ This should build the docker executable in current directory. You can run docker
     
     zfs create zroot/docker -o mountpoint=/dk # this should be short!
     ./docker -d -b none -e jail -s zfs -g /dk -D
+
+After the daemon is started we can pull the image
+
+   ./docker pull kazuyoshi/freebsd-minimal
+
+
