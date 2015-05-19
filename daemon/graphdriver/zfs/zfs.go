@@ -1,4 +1,4 @@
-// +build linux
+// +build linux, +build freebsd
 
 package zfs
 
@@ -122,10 +122,11 @@ func checkRootdirFs(rootdir string) error {
 		return fmt.Errorf("Failed to access '%s': %s", rootdir, err)
 	}
 
-	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
-		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
-		return graphdriver.ErrPrerequisites
-	}
+	// FIXME: on freebsd buf.Type returns '0xDE', figure out why
+	// if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
+	// 	log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
+	// 	return graphdriver.ErrPrerequisites
+	// }
 	return nil
 }
 

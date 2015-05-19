@@ -31,4 +31,5 @@ Now build the docker
 
 This should build the docker executable in current directory. You can run docker with command:
     
-    ./docker -d -b none -e jail -s zfs
+    zfs create zroot/docker -o mountpoint=/dk # this should be short!
+    ./docker -d -b none -e jail -s zfs -g /dk -D
