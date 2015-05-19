@@ -188,6 +188,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	<-waitLock
 	exitCode := getExitCode(c)
 
+	if err := exec.Command("umount", root + "/dev").Run(); err != nil { 		
+		logrus.Debugf("umount %s failed: %s", c.ID, err);
+	}
+
+
 	// if err == nil {
 	// 	_, oomKill = <-oomKillNotification
 	// 	logrus.Debugf("oomKill error: %v, waitErr: %v", oomKill, waitErr)
