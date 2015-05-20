@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/libcontainer/system"
+
+	"runtime"
 )
 
 // newStatsCollector returns a new statsCollector that collections
@@ -123,6 +125,11 @@ const nanoSeconds = 1e9
 // getSystemCpuUSage returns the host system's cpu usage in nanoseconds
 // for the system to match the cgroup readings are returned in the same format.
 func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
+	// FIXME: implement this function for FreeBSD
+	if runtime.GOOS == "freebsd" {
+		return 0, nil
+	}
+
 	var line string
 	f, err := os.Open("/proc/stat")
 	if err != nil {
