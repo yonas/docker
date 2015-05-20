@@ -1,4 +1,6 @@
 # Porting to FreeBSD
+I'm trying to make docker work on freebsd
+
 Major milestones for porting docker on FreeBSD are:
 
 * make it compile (DONE)
@@ -11,6 +13,8 @@ Major milestones for porting docker on FreeBSD are:
 * working volumes and links
 * working limits
 * major code cleanup and steps to push code to docker project
+
+(See the bigger list below)
 
 # Running
 We dont have working docker image on freebsd, and cross-compile doesn't work wery well, so now we need to compile on FreeBSD directly
@@ -46,6 +50,7 @@ Interactive mode works too
 
 # List of working commands and features
 
+Commands:
 * attach    - ok
 * build
 * commit    - bug
@@ -54,33 +59,45 @@ Interactive mode works too
 * diff      - ok (on stopped containers)
 * events    - ok
 * exec
-* export
+* export    - ok
 * history   - ok
 * images    - ok
-* import
+* import    - ok
 * info      - bug
 * inspect   - ok
 * kill      - ok
-* load
-* login     - ok 
-* logout    - ok 
+* load      - not working
+* login     - ok
+* logout    - ok
 * logs      - ok
 * pause     - not working (not supported on freebsd)
 * port      - not working
 * ps        - ok
 * pull      - ok
-* push
+* push      - not working (wierd, maybe problem with the hub)
 * rename    - ok
 * restart   - ok
 * rm        - ok
 * rmi       - ok
 * run       - ok
-* save
+* save      - ok
 * search    - ok
 * start     - ok
 * stats     - not working
 * stop      - ok
 * tag       - ok
+* top       - ok
 * unpause   - not working (not supported on freebsd)
 * version   - ok
 * wait      - ok
+
+Features:
+* image loading         - ok
+* container creation    - ok
+* container stop\start  - ok
+* build on FreeBSD 10.1 - not working
+* NAT                   - not working
+* port forward          - not working
+* volumes               - not working
+* links                 - not working
+* limits                - not working
