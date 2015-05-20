@@ -18,6 +18,12 @@ import (
 	"github.com/kr/pty"
 	"io"
 	"github.com/docker/docker/pkg/term"
+
+	"strings"
+	"errors"
+
+	"bytes"
+	"strconv"
 )
 
 const DriverName = "jail"
@@ -230,6 +236,8 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
+	// FIXME: should be this replaced with kill?
+	// NOTE: a bug is possible if using kill - jail can exist without any processes so it will be always running
 	logrus.Debugf("jail kill %d %s", sig, c.ID)
 
 	if err := exec.Command("jail", "-r", c.ID).Run(); err != nil {
@@ -240,23 +248,50 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
-	logrus.Debug("jail pause")
-	return nil
+	return errors.New("pause is not supported for jail execdriver");
 }
 
 func (d *driver) Unpause(c *execdriver.Command) error {
-	logrus.Debug("jail unpause")
-	return nil
+	return errors.New("pause is not supported for jail execdriver");
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
-	logrus.Debug("jail term")
+	if err := exec.Command("jail", "-r", c.ID).Run(); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
-	logrus.Debugf("jail ps %s", id)
-	return nil, nil
+
+	cmd := exec.Command("ps", "-opid","-xaJ", id)  
+  var out bytes.Buffer
+  cmd.Stdout = &out
+  err := cmd.Run()
+  if err != nil {
+      return nil, err
+  }
+
+  pids := make([]int, 0)
+  for {
+    line, err := out.ReadString('\n')
+    if err!=nil {
+        break;
+    }
+
+    tokens := strings.Split(line, "\n")  
+    pid, err := strconv.Atoi(tokens[0])
+    if(pid == 0) {
+    	continue
+    }
+
+    if err!=nil {
+        continue
+    }      
+    pids = append(pids, pid)
+  }
+
+  return pids, nil
 }
 
 func (d *driver) Clean(id string) error {

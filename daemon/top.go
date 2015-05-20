@@ -6,12 +6,18 @@ import (
 	"strconv"
 	"strings"
 
+	"runtime"
+
 	"github.com/docker/docker/api/types"
 )
 
 func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
+
+		if(runtime.GOOS == "freebsd") {
+			psArgs = "-f"
+		}
 	}
 
 	container, err := daemon.Get(name)
