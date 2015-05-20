@@ -13,6 +13,11 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 
 	"github.com/Sirupsen/logrus"
+
+
+	"github.com/kr/pty"
+	"io"
+	"github.com/docker/docker/pkg/term"
 )
 
 const DriverName = "jail"
@@ -77,7 +82,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		err 		error
 	)
 
-	term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
+	// setting terminal parameters
+	if c.ProcessConfig.Tty {
+		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
+	} else {
+		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
+	}
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
@@ -281,4 +291,78 @@ func (info *info) IsRunning() bool {
 	}
 
 	return false
+}
+
+
+// ===
+
+type TtyConsole struct {
+	MasterPty *os.File
+	SlavePty  *os.File
+}
+
+func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes) (*TtyConsole, error) {
+	// lxc is special in that we cannot create the master outside of the container without
+	// opening the slave because we have nothing to provide to the cmd.  We have to open both then do
+	// the crazy setup on command right now instead of passing the console path to lxc and telling it
+	// to open up that console.  we save a couple of openfiles in the native driver because we can do
+	// this.
+	ptyMaster, ptySlave, err := pty.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	tty := &TtyConsole{
+		MasterPty: ptyMaster,
+		SlavePty:  ptySlave,
+	}
+
+	if err := tty.AttachPipes(&processConfig.Cmd, pipes); err != nil {
+		tty.Close()
+		return nil, err
+	}
+
+	processConfig.Console = tty.SlavePty.Name()
+
+	return tty, nil
+}
+
+func (t *TtyConsole) Master() *os.File {
+	return t.MasterPty
+}
+
+func (t *TtyConsole) Resize(h, w int) error {
+	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
+}
+
+func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) error {
+	command.Stdout = t.SlavePty
+	command.Stderr = t.SlavePty
+
+	go func() {
+		if wb, ok := pipes.Stdout.(interface {
+			CloseWriters() error
+		}); ok {
+			defer wb.CloseWriters()
+		}
+
+		io.Copy(pipes.Stdout, t.MasterPty)
+	}()
+
+	if pipes.Stdin != nil {
+		command.Stdin = t.SlavePty
+		command.SysProcAttr.Setctty = true
+
+		go func() {
+			io.Copy(t.MasterPty, pipes.Stdin)
+
+			pipes.Stdin.Close()
+		}()
+	}
+	return nil
+}
+
+func (t *TtyConsole) Close() error {
+	t.SlavePty.Close()
+	return t.MasterPty.Close()
 }

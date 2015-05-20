@@ -4,11 +4,12 @@ Major milestones for porting docker on FreeBSD are:
 * make it compile (DONE)
 * make it start as a daemon (DONE)
 * load an image and create the container (aka working graphdriver) (DONE)
-* run the container (IN PROGRESS)
-* working top\start\stop\kill (aka working execdriver)
+* run the container (DONE)
+* working top\start\stop\kill (aka working execdriver) (IN PROGRESS)
 * working networking aka NAT
 * working port forward (aka working networkdriver)
 * working volumes and links
+* working limits
 * major code cleanup and steps to push code to docker project
 
 # Running
@@ -37,8 +38,49 @@ This should build the docker executable in current directory. You can run docker
 After the daemon is started we can pull the image and start the container
 
     ./docker pull kazuyoshi/freebsd-minimal
-    ./docker run freebsd kazuyoshi/freebsd-minimal echo hello world
+    ./docker run kazuyoshi/freebsd-minimal echo hello world
    
-So containers can be created and started successfully, but interactive applications like csh are not working. 
+Interactive mode works too
 
+    ./docker run --it kazuyoshi/freebsd-minimal csh
 
+# List of working commands and features
+
+* attach    - ok
+* build
+* commit    - bug
+* cp
+* create    - ok
+* diff      - ok (on stopped containers)
+* events    - ok
+* exec
+* export
+* history   - ok
+* images    - ok
+* import
+* info      - bug
+* inspect   - ok
+* kill      - ok
+* load
+* login     - ok 
+* logout    - ok 
+* logs      - ok
+* pause     - not working (not supported on freebsd)
+* port      - not working
+* ps        - ok
+* pull      - ok
+* push
+* rename    - ok
+* restart   - ok
+* rm        - ok
+* rmi       - ok
+* run       - ok
+* save
+* search    - ok
+* start     - ok
+* stats     - not working
+* stop      - ok
+* tag       - ok
+* unpause   - not working (not supported on freebsd)
+* version   - ok
+* wait      - ok
