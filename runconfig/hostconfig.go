@@ -38,6 +38,10 @@ func (n NetworkMode) IsNone() bool {
 	return n == "none"
 }
 
+func (n NetworkMode) IsUserDefined() bool {
+	return !n.IsBridge() && !n.IsHost() && !n.IsNone() && !n.IsContainer()
+}
+
 type IpcMode string
 
 // IsPrivate indicates whether container use it's private ipc stack

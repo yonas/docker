@@ -18,6 +18,7 @@ var (
 	ErrConflictNetworkAndDns            = fmt.Errorf("Conflicting options: --dns and the network mode (--net)")
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior")
+	ErrConflictUserNetworkAndLinks      = fmt.Errorf("Conflicting options: User-Defined --netoption can't be used with links.")
 	ErrConflictContainerNetworkAndMac   = fmt.Errorf("Conflicting options: --mac-address and the network mode (--net)")
 	ErrConflictNetworkHosts             = fmt.Errorf("Conflicting options: --add-host and the network mode (--net)")
 )
@@ -70,7 +71,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flCpuQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS quota")
 		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
-		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
+		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
@@ -129,6 +130,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	if netMode.IsContainer() && flLinks.Len() > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndLinks
+	}
+
+	if netMode.IsUserDefined() && flLinks.Len() > 0 {
+		return nil, nil, cmd, ErrConflictUserNetworkAndLinks
 	}
 
 	if (netMode.IsHost() || netMode.IsContainer()) && flDns.Len() > 0 {
@@ -474,15 +479,14 @@ func parseKeyValueOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
 }
 
 func parseNetMode(netMode string) (NetworkMode, error) {
+	if strings.TrimSpace(netMode) == "" {
+		return "", fmt.Errorf("--net option cannot be empty")
+	}
 	parts := strings.Split(netMode, ":")
-	switch mode := parts[0]; mode {
-	case "bridge", "none", "host":
-	case "container":
+	if parts[0] == "container" {
 		if len(parts) < 2 || parts[1] == "" {
 			return "", fmt.Errorf("invalid container format container:<name|id>")
 		}
-	default:
-		return "", fmt.Errorf("invalid --net: %s", netMode)
 	}
 	return NetworkMode(netMode), nil
 }

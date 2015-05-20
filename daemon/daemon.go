@@ -646,6 +646,9 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if child.hostConfig.NetworkMode.IsHost() {
 				return runconfig.ErrConflictHostNetworkAndLinks
 			}
+			if child.hostConfig.NetworkMode.IsUserDefined() {
+				return runconfig.ErrConflictUserNetworkAndLinks
+			}
 			if err := daemon.RegisterLink(container, child, alias); err != nil {
 				return err
 			}
