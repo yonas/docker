@@ -19,20 +19,33 @@ Major milestones for porting docker on FreeBSD are:
 # Running
 We dont have working docker image on freebsd, and cross-compile doesn't work wery well, so now we need to compile on FreeBSD directly
 
+Prereqesites
+
+    pkg install go
+    pkg install git
+    pkg install sqlite3
+
 First we get the sources
 
-    export GOPATH=`pwd`
+    setenv GOPATH `pwd`
     go get github.com/docker/docker
-    cd src/docker/docker
+    cd src/github.com/docker/docker
     git remote set-url origin https://github.com/kvasdopil/docker.git
     git pull
+    git checkout origin/freebsd-compat
     
 Now build the docker
 
     sh hack/make/.go-autogen
-    cd ../../..
+    cd ../../../..
     cp -rp src/github.com/docker/docker/vendor/* .
-    go build -tags daemon github.com/docker/docker/docker/docker
+
+    # Now sure how to do this properly for golang
+    setenv CC clang # for FreeBSD 10.1
+    ln -s /usr/local/include/sqlite3.h /usr/include/
+    ln -s /usr/local/lib/libsqlite3.so* /usr/lib/
+
+    go build -tags daemon github.com/docker/docker/docker
 
 This should build the docker executable in current directory. You can run docker with command:
     
@@ -46,7 +59,7 @@ After the daemon is started we can pull the image and start the container
    
 Interactive mode works too
 
-    ./docker run --it kazuyoshi/freebsd-minimal csh
+    ./docker run -it kazuyoshi/freebsd-minimal csh
 
 # List of working commands and features
 
