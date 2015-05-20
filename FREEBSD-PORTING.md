@@ -67,7 +67,7 @@ Commands:
 * attach    - ok
 * build
 * commit    - bug
-* cp
+* cp        - not working on running containers, 'filename too long' bug on stopped containers
 * create    - ok
 * diff      - ok (on stopped containers)
 * events    - ok
@@ -108,7 +108,7 @@ Features:
 * image loading         - ok
 * container creation    - ok
 * container stop\start  - ok
-* build on FreeBSD 10.1 - not working
+* build on FreeBSD 10.1 - ok
 * NAT                   - not working
 * port forward          - not working
 * volumes               - not working
