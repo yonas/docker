@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 //	"net"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,7 +17,8 @@ import (
 
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
-//	"github.com/docker/libnetwork/netlabel"
+	nwapi "github.com/docker/libnetwork/api"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 
 	"github.com/Sirupsen/logrus"
@@ -965,6 +967,10 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	}
 */
 	return controller, nil
+}
+
+func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.Request) {
+	return nwapi.NewHTTPHandler(daemon.netController)
 }
 
 func (daemon *Daemon) Shutdown() error {

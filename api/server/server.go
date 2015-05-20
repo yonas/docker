@@ -1483,6 +1483,14 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 	}
 }
 
+func (s *Server) registerSubRouter() {
+	netHandler := s.daemon.NetworkApiRouter()
+	subrouter := s.router.PathPrefix("/v{version:[0-9.]+}/networks").Subrouter()
+	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(netHandler)
+	subrouter = s.router.PathPrefix("/networks").Subrouter()
+	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(netHandler)
+}
+
 // we keep enableCors just for legacy usage, need to be removed in the future
 func createRouter(s *Server) *mux.Router {
 	r := mux.NewRouter()
