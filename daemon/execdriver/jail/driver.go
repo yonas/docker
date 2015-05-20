@@ -80,9 +80,6 @@ func copyFile(src string, dest string) error {
 }
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
-	// if err := execdriver.SetTerminal(c, pipes); err != nil {
-	// 	return -1, err
-	// }
 	var (
 		term    execdriver.Terminal
 		err 		error
@@ -101,19 +98,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	logrus.Info("running jail")
 
-	
-
-	// init := path.Join(root, ".dockerinit")
-	// if err := copyFile(os.Args[0], init); err != nil {
-	// 	return execdriver.ExitStatus{ExitCode: -1}, err
-	// }
-
-	// // create /dev
 	root := c.Rootfs
-	// devDir := path.Join(root, "dev")
-	// if err := os.MkdirAll(devDir, 0755); err != nil {
-	// 	return execdriver.ExitStatus{ExitCode: -1}, err
-	// }
 
 	// build params for the jail
 	params := []string{
@@ -139,9 +124,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	logrus.Debug("jail started");
 
-  //=====
-
-
 	var (
 		waitErr  error
 		waitLock = make(chan struct{})
@@ -158,39 +140,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	var pid int
 
-	// terminate := func(terr error) (execdriver.ExitStatus, error) {
-	// 	if c.ProcessConfig.Process != nil {
-	// 		c.ProcessConfig.Process.Kill()
-	// 		c.ProcessConfig.Wait()
-	// 	}
-	// 	return execdriver.ExitStatus{ExitCode: -1}, terr
-	// }
-	// // Poll lxc for RUNNING status
-	// pid, err := d.waitForStart(c, waitLock)
-	// if err != nil {
-	// 	return terminate(err)
-	// }
-
-	// cgroupPaths, err := cgroupPaths(c.ID)
-	// if err != nil {
-	// 	return terminate(err)
-	// }
-
-	// state := &libcontainer.State{
-	// 	InitProcessPid: pid,
-	// 	CgroupPaths:    cgroupPaths,
-	// }
-
-	// f, err := os.Create(filepath.Join(dataPath, "state.json"))
-	// if err != nil {
-	// 	return terminate(err)
-	// }
-	// defer f.Close()
-
-	// if err := json.NewEncoder(f).Encode(state); err != nil {
-	// 	return terminate(err)
-	// }
-
 	c.ContainerPid = pid
 
 	if startCallback != nil {
@@ -198,8 +147,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		startCallback(&c.ProcessConfig, pid)
 	}
 
-	// oomKill := false
-	// oomKillNotification, err := notifyOnOOM(cgroupPaths)
 
 	<-waitLock
 	exitCode := getExitCode(c)
@@ -208,24 +155,76 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		logrus.Debugf("umount %s failed: %s", c.ID, err);
 	}
 
-
-	// if err == nil {
-	// 	_, oomKill = <-oomKillNotification
-	// 	logrus.Debugf("oomKill error: %v, waitErr: %v", oomKill, waitErr)
-	// } else {
-	// 	logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
-	// }
-
-	// // check oom error
-	// if oomKill {
-	// 	exitCode = 137
-	// }
-
 	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: false}, waitErr
+}
 
-  //=====
+func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+	var (
+		term    execdriver.Terminal
+		err 		error
+	)
 
-	//return execdriver.ExitStatus{getExitCode(c), false}, nil
+	// setting terminal parameters
+	if processConfig.Tty {
+		term, err = NewTtyConsole(processConfig, pipes)
+	} else {
+		term, err = execdriver.NewStdConsole(processConfig, pipes)
+	}
+	if err != nil {
+		return -1, err
+	}
+	processConfig.Terminal = term
+
+	logrus.Info("running jexec")
+
+	// build params for the jail
+	params := []string{
+		"/usr/sbin/jexec",
+		c.ID,		
+		processConfig.Entrypoint,
+	}
+
+	params = append(params, processConfig.Arguments...)
+
+	processConfig.Path = "/usr/sbin/jexec"
+	processConfig.Args = params
+
+	logrus.Debugf("jexec params %s", params)
+
+	if err := processConfig.Start(); err != nil {
+		logrus.Infof("jexec failed %s", err)
+		return -1, err
+	}
+
+	logrus.Debug("jexec started");
+
+	var (
+		waitErr  error
+		waitLock = make(chan struct{})
+	)
+
+	go func() {
+		if err := processConfig.Wait(); err != nil {
+			if _, ok := err.(*exec.ExitError); !ok { // Do not propagate the error if it's simply a status code != 0
+				waitErr = err
+			}
+		}
+		close(waitLock)
+	}()
+
+	var pid int
+
+	c.ContainerPid = pid
+
+	if startCallback != nil {
+		logrus.Debugf("Invoking startCallback")
+		startCallback(processConfig, pid)
+	}
+
+	<-waitLock
+	exitCode := getExitCode(c)
+
+	return exitCode, waitErr
 }
 
 func getExitCode(c *execdriver.Command) int {
@@ -236,7 +235,7 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
-	// FIXME: should be this replaced with kill?
+	// FIXME: should be this replaced with killall\pkill?
 	// NOTE: a bug is possible if using kill - jail can exist without any processes so it will be always running
 	logrus.Debugf("jail kill %d %s", sig, c.ID)
 
@@ -297,11 +296,6 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 func (d *driver) Clean(id string) error {
 	logrus.Debugf("jail clean %s", id)
 	return nil
-}
-
-func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	logrus.Debugf("jail exec")
-	return 0, nil
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error)  {

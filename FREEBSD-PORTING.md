@@ -71,7 +71,7 @@ Commands:
 * create    - ok
 * diff      - ok (on stopped containers)
 * events    - ok
-* exec
+* exec      - ok
 * export    - ok
 * history   - ok
 * images    - ok
