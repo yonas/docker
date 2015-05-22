@@ -54,12 +54,35 @@ This should build the docker executable in current directory. You can run docker
 
 After the daemon is started we can pull the image and start the container
 
-    ./docker pull kazuyoshi/freebsd-minimal
-    ./docker run kazuyoshi/freebsd-minimal echo hello world
+    ./docker pull lexaguskov/freebsd-minimal 
+    ./docker run lexaguskov/freebsd-minimal echo hello world
    
 Interactive mode works too
 
-    ./docker run -it kazuyoshi/freebsd-minimal csh
+    ./docker run -it lexaguskov/freebsd-minimal csh
+
+# Retrieving real FreeBSD image
+
+Since "docker push" command is not working, we have to obtain the image somewhere else.
+
+    fetch http://download.a-real.ru/freebsd.10.1.amd64.img.txz
+    tar xf freebsd.10.1.amd64.img.txz
+    /root/docker/docker import - freebsd:10.1 < bsd.img
+
+    Now we can test networking etc.
+
+    ./docker run -it freebsd:10.1 ifconfig lo1
+
+# Networking
+
+Now the docker can setup basic networking, but not nat
+
+    kldload pf.ko
+
+    echo "nat on {you-external-interface} from 172.17.0.0/16 to any -> ({your-external-interface})" > /etc/pf.conf
+    pfctl -f /etc/pf.conf
+
+    ./docker run -it freebsd:10.1 ping ya.ru # this should work
 
 # List of working commands and features
 
@@ -87,7 +110,7 @@ Commands:
 * port      - not working
 * ps        - ok
 * pull      - ok
-* push      - ok
+* push      - not working (server 500 error)
 * rename    - ok
 * restart   - ok
 * rm        - ok
