@@ -107,7 +107,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"name=" + c.ID,
 		"path=" + root,
 		"mount.devfs=1",
-		"allow.rawsockets=1", // TODO: this must be put in an option
+		"allow.raw_sockets=1", // TODO: this must be put in an option
 	}
 
 	if c.Network.Interface != nil {
