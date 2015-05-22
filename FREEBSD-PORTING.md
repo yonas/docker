@@ -7,8 +7,8 @@ Major milestones for porting docker on FreeBSD are:
 * make it start as a daemon (DONE)
 * load an image and create the container (aka working graphdriver) (DONE)
 * run the container (DONE)
-* working top\start\stop\kill (aka working execdriver) (IN PROGRESS)
-* working networking aka NAT
+* working top\start\stop\kill (aka working execdriver) (DONE)
+* working networking aka NAT (IN PROGRESS)
 * working port forward (aka working networkdriver)
 * working volumes and links
 * working limits
@@ -50,7 +50,7 @@ Now build the docker
 This should build the docker executable in current directory. You can run docker with command:
     
     zfs create -o mountpoint=/dk zroot/docker # mounpoint should be short
-    ./docker -d -b none -e jail -s zfs -g /dk -D
+    ./docker -d -e jail -s zfs -g /dk -D
 
 After the daemon is started we can pull the image and start the container
 
@@ -114,3 +114,17 @@ Features:
 * volumes               - not working
 * links                 - not working
 * limits                - not working
+
+# Participating
+
+If you wish to help, you can join IRC channel #freebsd-docker on freenode.net. 
+
+Now we have following issues:
+* not working "docker commit"
+* not working "docker cp"
+* not working "docker load"
+* "docker push" sometimes returns with error
+* codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
+* not working netlink functions from libcontainer
+
+Current progress is focused on networking, NAT and port forwarding.
