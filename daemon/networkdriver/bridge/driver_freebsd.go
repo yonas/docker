@@ -22,13 +22,13 @@ import (
 	"github.com/docker/docker/daemon/networkdriver/portmapper"
 	"github.com/docker/docker/nat"
 	//"github.com/docker/docker/pkg/iptables"
-	"github.com/docker/docker/pkg/parsers/kernel"
+	//"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/libcontainer/netlink"
 )
 
 const (
-	DefaultNetworkBridge     = "docker0"
+	DefaultNetworkBridge     = "lo1"
 	MaxAllocatedPortAttempts = 10
 )
 
@@ -143,13 +143,14 @@ func InitDriver(config *Config) error {
 
 	addrv4, addrsv6, err := networkdriver.GetIfaceAddr(bridgeIface)
 
-	logrus.Debugf("[bridge] found ip address: %s", addrv4)
+  // FIXME: On FreeBSD the vnet driver is not very stable and requires kernel recompilation
+  // so now we just using shared network interface, not the real bridge
 
 	if err != nil {
 		// No Bridge existent, create one
-		// If we're not using the default bridge, fail without trying to create it
+		// If we're not using the default bridge, fail without trying to create it		
 		if !usingDefaultBridge {
-			return err
+		 	return err
 		}
 
 		logrus.Info("Bridge interface not found, trying to create it")
@@ -173,6 +174,9 @@ func InitDriver(config *Config) error {
 			}
 		}
 	} else {
+
+		logrus.Debugf("[bridge] found ip address: %s", addrv4)
+
 		// Bridge exists already, getting info...
 		// Validate that the bridge ip matches the ip specified by BridgeIP
 		if config.IP != "" {
@@ -459,12 +463,13 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 				return err
 			}
 			if err := networkdriver.CheckNameserverOverlaps(nameservers, dockerNetwork); err == nil {
-				if err := networkdriver.CheckRouteOverlaps(dockerNetwork); err == nil {
+				// FIXME: UGLY HACK netlink functions are not implemented for freebsd				
+				//if err := networkdriver.CheckRouteOverlaps(dockerNetwork); err == nil {
 					ifaceAddr = addr
 					break
-				} else {
-					logrus.Debugf("%s %s", addr, err)
-				}
+				//} else {
+				//	logrus.Debugf("%s %s", addr, err)
+				//}
 			}
 		}
 	}
@@ -481,17 +486,20 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 		}
 	}
 
-	iface, err := net.InterfaceByName(bridgeIface)
-	if err != nil {
-		return err
-	}
+	// iface, err := net.InterfaceByName(bridgeIface)
+	// if err != nil {
+	// 	return err
+	// }
 
 	ipAddr, ipNet, err := net.ParseCIDR(ifaceAddr)
 	if err != nil {
 		return err
 	}
 
-	if err := netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
+//	if err := netlink.NetworkLinkAddIp(iface, ipAddr, ipNet); err != nil {
+
+	//logrus.Debugf("running %s", []string{"/sbin/ifconfig", bridgeIface, "inet", ipAddr.String(), "netmask", "0x" + ipNet.Mask.String()})
+	if err := exec.Command("/sbin/ifconfig", bridgeIface, "inet", ipAddr.String(), "netmask", "0x" + ipNet.Mask.String()).Run(); err != nil {
 		return fmt.Errorf("Unable to add private network: %s", err)
 	}
 
@@ -501,7 +509,9 @@ func configureBridge(bridgeIP string, bridgeIPv6 string, enableIPv6 bool) error 
 		}
 	}
 
-	if err := netlink.NetworkLinkUp(iface); err != nil {
+//	if err := netlink.NetworkLinkUp(iface); err != nil {
+
+	if err := exec.Command("/sbin/ifconfig", bridgeIface, "up").Run(); err != nil {
 		return fmt.Errorf("Unable to start network bridge: %s", err)
 	}
 	return nil
@@ -550,12 +560,18 @@ func requestDefaultGateway(requestedGateway string, network *net.IPNet) (gateway
 }
 
 func createBridgeIface(name string) error {
-	kv, err := kernel.GetKernelVersion()
-	// Only set the bridge's mac address if the kernel version is > 3.3
-	// before that it was not supported
-	setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
-	logrus.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
-	return netlink.CreateBridge(name, setBridgeMacAddr)
+	//kv, err := kernel.GetKernelVersion()
+	// // Only set the bridge's mac address if the kernel version is > 3.3
+	// // before that it was not supported
+	// setBridgeMacAddr := err == nil && (kv.Kernel >= 3 && kv.Major >= 3)
+	// logrus.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
+	// return netlink.CreateBridge(name, setBridgeMacAddr)
+
+	if err := exec.Command("/sbin/ifconfig", name, "create").Run(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Generate a IEEE802 compliant MAC address from the given IP address.
