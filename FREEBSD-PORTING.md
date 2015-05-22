@@ -124,7 +124,9 @@ Now we have following issues:
 * not working "docker cp"
 * not working "docker load"
 * "docker push" sometimes returns with error
-* codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
-* not working netlink functions from libcontainer
+* the codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
+* netlink functions from libcontainer are not working
+* docker can't load (pull or import) an image if not compiled on this machine
+* we need to port native build system
 
 Current progress is focused on networking, NAT and port forwarding.
