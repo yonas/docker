@@ -10,7 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
+	//"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -124,11 +124,7 @@ func InitDriver(config *Config) error {
 		bridgeIPv6 = "fe80::1/64"
 	)
 
-	// try to modprobe bridge first
-	// see gh#12177
-	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").Output(); err != nil {
-		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
-	}
+	logrus.Debugf("[bridge] init driver")
 
 	initPortMapper()
 
@@ -146,6 +142,8 @@ func InitDriver(config *Config) error {
 	}
 
 	addrv4, addrsv6, err := networkdriver.GetIfaceAddr(bridgeIface)
+
+	logrus.Debugf("[bridge] found ip address: %s", addrv4)
 
 	if err != nil {
 		// No Bridge existent, create one
@@ -197,7 +195,8 @@ func InitDriver(config *Config) error {
 				return err
 			}
 			// Recheck addresses now that IPv6 is setup on the bridge
-			addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface)
+			addrv4, addrsv6, err = networkdriver.GetIfaceAddr(bridgeIface)			
+
 			if err != nil {
 				return err
 			}
@@ -239,40 +238,40 @@ func InitDriver(config *Config) error {
 	// 	}
 	// }
 
-	// Configure iptables for link support
-	if config.EnableIptables {
-		if err := setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq); err != nil {
-			logrus.Errorf("Error configuring iptables: %s", err)
-			return err
-		}
-		// call this on Firewalld reload
-		//iptables.OnReloaded(func() { setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq) })
-	}
+	// // Configure iptables for link support
+	// if config.EnableIptables {
+	// 	if err := setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq); err != nil {
+	// 		logrus.Errorf("Error configuring iptables: %s", err)
+	// 		return err
+	// 	}
+	// 	// call this on Firewalld reload
+	// 	//iptables.OnReloaded(func() { setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq) })
+	// }
 
-	if config.EnableIpForward {
-		// Enable IPv4 forwarding
-		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
-			logrus.Warnf("Unable to enable IPv4 forwarding: %v", err)
-		}
+	// if config.EnableIpForward {
+	// 	// Enable IPv4 forwarding
+	// 	if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+	// 		logrus.Warnf("Unable to enable IPv4 forwarding: %v", err)
+	// 	}
 
-		if config.FixedCIDRv6 != "" {
-			// Enable IPv6 forwarding
-			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				logrus.Warnf("Unable to enable IPv6 default forwarding: %v", err)
-			}
-			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				logrus.Warnf("Unable to enable IPv6 all forwarding: %v", err)
-			}
-		}
-	}
+	// 	if config.FixedCIDRv6 != "" {
+	// 		// Enable IPv6 forwarding
+	// 		if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{'1', '\n'}, 0644); err != nil {
+	// 			logrus.Warnf("Unable to enable IPv6 default forwarding: %v", err)
+	// 		}
+	// 		if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
+	// 			logrus.Warnf("Unable to enable IPv6 all forwarding: %v", err)
+	// 		}
+	// 	}
+	// }
 
-	if hairpinMode {
-		// Enable loopback adresses routing
-		sysPath := filepath.Join("/proc/sys/net/ipv4/conf", bridgeIface, "route_localnet")
-		if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
-			logrus.Warnf("Unable to enable local routing for hairpin mode: %v", err)
-		}
-	}
+	// if hairpinMode {
+	// 	// Enable loopback adresses routing
+	// 	sysPath := filepath.Join("/proc/sys/net/ipv4/conf", bridgeIface, "route_localnet")
+	// 	if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
+	// 		logrus.Warnf("Unable to enable local routing for hairpin mode: %v", err)
+	// 	}
+	// }
 
 	// We can always try removing the iptables
 	// if err := iptables.RemoveExistingChain("DOCKER", iptables.Nat); err != nil {

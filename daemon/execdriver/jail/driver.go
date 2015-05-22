@@ -1,7 +1,7 @@
 package jail
 
 import (
-	//"fmt"
+	"fmt"
 	"io/ioutil"
 	//"log"
 	"os"
@@ -96,7 +96,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 	c.ProcessConfig.Terminal = term
 
-	logrus.Info("running jail")
+	logrus.Info("[jail] running jail")
 
 	root := c.Rootfs
 
@@ -107,22 +107,34 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"name=" + c.ID,
 		"path=" + root,
 		"mount.devfs=1",
-		"command=" + c.ProcessConfig.Entrypoint,
 	}
 
+	if c.Network.Interface != nil {
+		// for some reason if HostNetworking is enabled, c.Network doesnt contain interface name and ip 
+		if !c.Network.HostNetworking {	
+			params = append(params,
+				"interface=" + c.Network.Interface.Bridge,
+				"ip4.addr=" + fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
+			)
+		}
+	} else {
+		logrus.Debug("[jail] networking is disabled")
+	}
+
+	params = append(params, "command=" + c.ProcessConfig.Entrypoint)
 	params = append(params, c.ProcessConfig.Arguments...)
 
 	c.ProcessConfig.Path = "/usr/sbin/jail"
 	c.ProcessConfig.Args = params
 
-	logrus.Debugf("jail params %s", params)
+	logrus.Debugf("[jail] jail params %s", params)
 
 	if err := c.ProcessConfig.Start(); err != nil {
 		logrus.Infof("jail failed %s", err)
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
-	logrus.Debug("jail started");
+	logrus.Debug("[jail] jail started");
 
 	var (
 		waitErr  error
@@ -143,7 +155,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.ContainerPid = pid
 
 	if startCallback != nil {
-		logrus.Debugf("Invoking startCallback")
 		startCallback(&c.ProcessConfig, pid)
 	}
 
@@ -175,7 +186,7 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	}
 	processConfig.Terminal = term
 
-	logrus.Info("running jexec")
+	logrus.Info("[jail] running jexec")
 
 	// build params for the jail
 	params := []string{
@@ -189,7 +200,7 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	processConfig.Path = "/usr/sbin/jexec"
 	processConfig.Args = params
 
-	logrus.Debugf("jexec params %s", params)
+	logrus.Debugf("[jail] jexec params %s", params)
 
 	if err := processConfig.Start(); err != nil {
 		logrus.Infof("jexec failed %s", err)
@@ -217,7 +228,6 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	c.ContainerPid = pid
 
 	if startCallback != nil {
-		logrus.Debugf("Invoking startCallback")
 		startCallback(processConfig, pid)
 	}
 
@@ -237,7 +247,7 @@ func getExitCode(c *execdriver.Command) int {
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	// FIXME: should be this replaced with killall\pkill?
 	// NOTE: a bug is possible if using kill - jail can exist without any processes so it will be always running
-	logrus.Debugf("jail kill %d %s", sig, c.ID)
+	logrus.Debugf("[jail] kill %d %s", sig, c.ID)
 
 	if err := exec.Command("jail", "-r", c.ID).Run(); err != nil {
 		return err
@@ -313,8 +323,6 @@ func (d *driver) Info(id string) execdriver.Info {
 }
 
 func (info *info) IsRunning() bool {
-	logrus.Debugf("jail isrunning")
-
 	if err := exec.Command("jls", "-j", info.ID).Run(); err != nil {
 		return true
 	}
