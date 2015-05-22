@@ -24,20 +24,20 @@ Prereqesites
     pkg install go
     pkg install git
     pkg install sqlite3
+    pkg install ca_root_nss # use this if pull command is not working
 
 First we get the sources
 
     setenv GOPATH `pwd`
-    go get github.com/docker/docker
+    mkdir -p src/github.com/docker    
+    git clone https://github.com/kvasdopil/docker src/github.com/docker/docker
     cd src/github.com/docker/docker
-    git remote set-url origin https://github.com/kvasdopil/docker.git
-    git pull
-    git checkout origin/freebsd-compat
+    git checkout freebsd-compat
     
 Now build the docker
 
     sh hack/make/.go-autogen
-    cd ../../../..
+    cd $GOPATH
     cp -rp src/github.com/docker/docker/vendor/* .
 
     # Now sure how to do this properly for golang
@@ -87,7 +87,7 @@ Commands:
 * port      - not working
 * ps        - ok
 * pull      - ok
-* push      - not working (wierd, maybe problem with the hub)
+* push      - ok
 * rename    - ok
 * restart   - ok
 * rm        - ok
