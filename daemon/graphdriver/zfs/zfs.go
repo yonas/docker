@@ -233,13 +233,20 @@ func (d *Driver) ZfsPath(id string) string {
 }
 
 func (d *Driver) MountPath(id string) string {
+	newid := id;
 
 	// on freebsd mount path is limited with 88 chars, so we need to use short ids
   if(runtime.GOOS == "freebsd") {
-  	return path.Join(d.options.mountPath, "graph", id[0:12])
+		suffix := strings.SplitN(id, "-", 2)
+	
+		if(len(suffix) == 1) {// no tag
+			newid = id[0:12]
+		} else { 
+			newid = id[0:12] + "-" + suffix[1]
+		}
   }   
 
-	return path.Join(d.options.mountPath, "graph", id)
+	return path.Join(d.options.mountPath, "graph", newid)
 }
 
 func (d *Driver) Create(id string, parent string) error {
