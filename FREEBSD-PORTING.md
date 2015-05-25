@@ -42,23 +42,19 @@ Now build the binary
     # setenv AUTO_GOPATH 1
     # ./hack/make.sh binary 
 
-This should build the docker executable /root/docker/bundles/1.7.0-dev/binary/docker-1.7.0-dev. Lets install it:
-
-    # cp /root/docker/bundles/1.7.0-dev/binary/docker-1.7.0-dev /usr/sbin/docker
-    
-Now run the daemon
+This should build the docker executable ./bundles/latest/binary/docker. Now run the daemon:
 
     # zfs create -o mountpoint=/dk zroot/docker # mounpoint should be short
-    # docker -d -e jail -s zfs -g /dk -D
+    # ./bundles/latest/binary/docker -d -e jail -s zfs -g /dk -D
 
 After the daemon is started we can pull the image and start the container
 
-    # docker pull lexaguskov/freebsd-minimal 
-    # docker run lexaguskov/freebsd-minimal echo hello world
+    # ./bundles/latest/binary/docker pull lexaguskov/freebsd-minimal 
+    # ./bundles/latest/binary/docker run lexaguskov/freebsd-minimal echo hello world
    
 Interactive mode works too
 
-    # docker run -it lexaguskov/freebsd-minimal csh
+    # ./bundles/latest/binary/docker run -it lexaguskov/freebsd-minimal csh
 
 # Retrieving real FreeBSD image
 
@@ -66,11 +62,11 @@ Since "docker push" command is not working, we have to obtain the image somewher
 
     # fetch http://download.a-real.ru/freebsd.10.1.amd64.img.txz
     # tar xf freebsd.10.1.amd64.img.txz
-    # docker import - freebsd:10.1 < bsd.img
+    # ./bundles/latest/binary/docker import - freebsd:10.1 < bsd.img
 
     Now we can test networking etc.
 
-    # docker run -it freebsd:10.1 ifconfig lo1
+    # ./bundles/latest/binary/docker run -it freebsd:10.1 ifconfig lo1
 
 # Networking
 
@@ -81,7 +77,7 @@ Now the docker can setup basic networking, but not nat
     # echo "nat on {you-external-interface} from 172.17.0.0/16 to any -> ({your-external-interface})" > /etc/pf.conf
     # pfctl -f /etc/pf.conf
 
-    # docker run -it freebsd:10.1 ping ya.ru # this should work
+    # ./bundles/latest/binary/docker run -it freebsd:10.1 ping ya.ru # this should work
 
 # List of working commands and features
 
@@ -147,6 +143,6 @@ Now we have following issues:
 * "docker push" sometimes returns with error
 * the codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
 * netlink functions from libcontainer are not working
-* docker can't load (pull or import) an image if not compiled on this machine
+* docker can't load (pull, import or commit) an image if not started from build path
 
 Current progress is focused on networking, NAT and port forwarding.
