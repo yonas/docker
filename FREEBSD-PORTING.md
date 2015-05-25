@@ -21,75 +21,74 @@ We dont have working docker image on freebsd, and cross-compile doesn't work wer
 
 Prereqesites
 
-    pkg install go
-    pkg install git
-    pkg install sqlite3
-    pkg install ca_root_nss # use this if pull command is not working
+    # pkg install go
+    # pkg install git
+    # pkg install sqlite3
+    # pkg install bash
+    # pkg install ca_root_nss # use this if pull command is not working
 
 First we get the sources
-
-    setenv GOPATH `pwd`
-    mkdir -p src/github.com/docker    
-    git clone https://github.com/kvasdopil/docker src/github.com/docker/docker
-    cd src/github.com/docker/docker
-    git checkout freebsd-compat
     
-Now build the docker
-
-    sh hack/make/.go-autogen
-    cd $GOPATH
-    cp -rp src/github.com/docker/docker/vendor/* .
-
-    # Now sure how to do this properly for golang
-    setenv CC clang # for FreeBSD 10.1
-    ln -s /usr/local/include/sqlite3.h /usr/include/
-    ln -s /usr/local/lib/libsqlite3.so* /usr/lib/
-
-    go build -tags daemon github.com/docker/docker/docker
-
-This should build the docker executable in current directory. You can run docker with command:
+    # git clone https://github.com/kvasdopil/docker 
+    # cd docker
+    # git checkout freebsd-compat
     
-    zfs create -o mountpoint=/dk zroot/docker # mounpoint should be short
-    ./docker -d -e jail -s zfs -g /dk -D
+Now build the binary    
+
+    (Not sure how to do this properly for golang)
+    # ln -s /usr/local/include/sqlite3.h /usr/include/
+    # ln -s /usr/local/lib/libsqlite3.so* /usr/lib/
+
+    # setenv AUTO_GOPATH 1
+    # ./hack/make.sh binary 
+
+This should build the docker executable /root/docker/bundles/1.7.0-dev/binary/docker-1.7.0-dev. Lets install it:
+
+    # cp /root/docker/bundles/1.7.0-dev/binary/docker-1.7.0-dev /usr/sbin/docker
+    
+Now run the daemon
+
+    # zfs create -o mountpoint=/dk zroot/docker # mounpoint should be short
+    # docker -d -e jail -s zfs -g /dk -D
 
 After the daemon is started we can pull the image and start the container
 
-    ./docker pull lexaguskov/freebsd-minimal 
-    ./docker run lexaguskov/freebsd-minimal echo hello world
+    # docker pull lexaguskov/freebsd-minimal 
+    # docker run lexaguskov/freebsd-minimal echo hello world
    
 Interactive mode works too
 
-    ./docker run -it lexaguskov/freebsd-minimal csh
+    # docker run -it lexaguskov/freebsd-minimal csh
 
 # Retrieving real FreeBSD image
 
 Since "docker push" command is not working, we have to obtain the image somewhere else.
 
-    fetch http://download.a-real.ru/freebsd.10.1.amd64.img.txz
-    tar xf freebsd.10.1.amd64.img.txz
-    /root/docker/docker import - freebsd:10.1 < bsd.img
+    # fetch http://download.a-real.ru/freebsd.10.1.amd64.img.txz
+    # tar xf freebsd.10.1.amd64.img.txz
+    # docker import - freebsd:10.1 < bsd.img
 
     Now we can test networking etc.
 
-    ./docker run -it freebsd:10.1 ifconfig lo1
+    # docker run -it freebsd:10.1 ifconfig lo1
 
 # Networking
 
 Now the docker can setup basic networking, but not nat
 
-    kldload pf.ko
+    # kldload pf.ko
 
-    echo "nat on {you-external-interface} from 172.17.0.0/16 to any -> ({your-external-interface})" > /etc/pf.conf
-    pfctl -f /etc/pf.conf
+    # echo "nat on {you-external-interface} from 172.17.0.0/16 to any -> ({your-external-interface})" > /etc/pf.conf
+    # pfctl -f /etc/pf.conf
 
-    ./docker run -it freebsd:10.1 ping ya.ru # this should work
+    # docker run -it freebsd:10.1 ping ya.ru # this should work
 
 # List of working commands and features
 
 Commands:
 * attach    - ok
 * build
-* commit    - bug
+* commit    - ok
 * cp        - not working on running containers, 'filename too long' bug on stopped containers
 * create    - ok
 * diff      - ok (on stopped containers)
@@ -132,7 +131,7 @@ Features:
 * container creation    - ok
 * container stop\start  - ok
 * build on FreeBSD 10.1 - ok
-* NAT                   - not working
+* NAT                   - partial support
 * port forward          - not working
 * volumes               - not working
 * links                 - not working
@@ -143,13 +142,11 @@ Features:
 If you wish to help, you can join IRC channel #freebsd-docker on freenode.net. 
 
 Now we have following issues:
-* not working "docker commit"
 * not working "docker cp"
 * not working "docker load"
 * "docker push" sometimes returns with error
 * the codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
 * netlink functions from libcontainer are not working
 * docker can't load (pull or import) an image if not compiled on this machine
-* we need to port native build system
 
 Current progress is focused on networking, NAT and port forwarding.
