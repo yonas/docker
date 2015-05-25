@@ -77,12 +77,15 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	}
 
 	filesystemsCache := make(map[string]bool, len(filesystems))
+	mountedFs := make(map[string]int, len(filesystems))
+
 	var rootDataset *zfs.Dataset
 	for _, fs := range filesystems {
 		if fs.Name == options.fsName {
 			rootDataset = fs
 		}
 		filesystemsCache[fs.Name] = true
+		mountedFs[fs.Name] = 0
 	}
 
 	if rootDataset == nil {
@@ -93,6 +96,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 		dataset:          rootDataset,
 		options:          options,
 		filesystemsCache: filesystemsCache,
+		mountedFs:        mountedFs,
 	}
 	return graphdriver.NaiveDiffDriver(d), nil
 }
@@ -160,6 +164,7 @@ type Driver struct {
 	options          ZfsOptions
 	sync.Mutex       // protects filesystem cache against concurrent access
 	filesystemsCache map[string]bool
+	mountedFs 			 map[string]int
 }
 
 func (d *Driver) String() string {
@@ -211,6 +216,7 @@ func (d *Driver) cloneFilesystem(name, parentName string) error {
 	if err == nil {
 		d.Lock()
 		d.filesystemsCache[name] = true
+		d.mountedFs[name] = 0
 		d.Unlock()
 	}
 
@@ -260,6 +266,7 @@ func (d *Driver) create(id, parent string) error {
 		if err == nil {
 			d.Lock()
 			d.filesystemsCache[fs.Name] = true
+			d.mountedFs[fs.Name] = 0
 			d.Unlock()
 		}
 		return err
@@ -274,6 +281,7 @@ func (d *Driver) Remove(id string) error {
 	if err == nil {
 		d.Lock()
 		delete(d.filesystemsCache, name)
+		delete(d.mountedFs, name)
 		d.Unlock()
 	}
 	return err
@@ -282,28 +290,48 @@ func (d *Driver) Remove(id string) error {
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mountpoint := d.MountPath(id)
 	filesystem := d.ZfsPath(id)
-	log.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, mountLabel)
 
-	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
-		return "", err
+	if(d.mountedFs[filesystem] == 0) {
+		log.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, mountLabel)
+
+		// Create the target directories if they don't exist
+		if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
+			return "", err
+		}
+
+		err := mount.Mount(filesystem, mountpoint, "zfs", mountLabel)
+		if err != nil {
+			return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
+		}
+	} else {
+		log.Debugf("[zfs] using already mounted fs %s", id)
 	}
 
-	err := mount.Mount(filesystem, mountpoint, "zfs", mountLabel)
-	if err != nil {
-		return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
-	}
+	d.Lock()
+	d.mountedFs[filesystem]++
+	d.Unlock()
 
 	return mountpoint, nil
 }
 
 func (d *Driver) Put(id string) error {
 	mountpoint := d.MountPath(id)
-	log.Debugf(`[zfs] unmount("%s")`, mountpoint)
+	name := d.ZfsPath(id)
 
-	if err := mount.Unmount(mountpoint); err != nil {
-		return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
+	if(d.mountedFs[name] == 1) {
+		log.Debugf(`[zfs] unmount("%s")`, mountpoint)
+
+		if err := mount.Unmount(mountpoint); err != nil {
+			return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
+		}
+	} else {
+		log.Debugf("[zfs] fs still used: %s", id)
 	}
+
+	d.Lock()
+	d.mountedFs[name]--
+	d.Unlock()
+
 	return nil
 }
 
