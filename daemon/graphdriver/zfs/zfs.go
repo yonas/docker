@@ -12,6 +12,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"runtime"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -232,6 +233,12 @@ func (d *Driver) ZfsPath(id string) string {
 }
 
 func (d *Driver) MountPath(id string) string {
+
+	// on freebsd mount path is limited with 88 chars, so we need to use short ids
+  if(runtime.GOOS == "freebsd") {
+  	return path.Join(d.options.mountPath, "graph", id[0:12])
+  }   
+
 	return path.Join(d.options.mountPath, "graph", id)
 }
 
