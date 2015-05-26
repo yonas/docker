@@ -1,4 +1,4 @@
-// +build !exclude_graphdriver_overlay
+// +build !exclude_graphdriver_overlay,!freebsd
 
 package daemon
 
