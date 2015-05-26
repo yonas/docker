@@ -1,4 +1,4 @@
-package sysifo
+package sysinfo
 
 // TODO FreeBSD
 func New(quiet bool) *SysInfo {
