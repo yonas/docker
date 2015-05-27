@@ -82,9 +82,9 @@ Commands:
 * attach    - ok
 * build
 * commit    - ok
-* cp        - not working on running containers, 'filename too long' bug on stopped containers
+* cp        - ok
 * create    - ok
-* diff      - ok (on stopped containers)
+* diff      - ok
 * events    - ok
 * exec      - ok
 * export    - ok
