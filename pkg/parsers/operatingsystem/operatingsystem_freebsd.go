@@ -11,5 +11,5 @@ func GetOperatingSystem() (string, error) {
 
 func IsContainerized() (bool, error) {
 	// TODO: Implement jail detection
-	return false, errors.New("Cannot detect if we are in container");
+	return false, errors.New("Cannot detect if we are in container")
 }
