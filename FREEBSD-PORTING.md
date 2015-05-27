@@ -135,9 +135,8 @@ Features:
 If you wish to help, you can join IRC channel #freebsd-docker on freenode.net. 
 
 Now we have following issues:
-* not working "docker cp"
 * not working "docker load"
-* "docker push" sometimes returns with error
+* on "docker push" the hub returns the error
 * the codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
 * netlink functions from libcontainer are not working
 * docker can't load (pull, import or commit) an image if not started from build path
