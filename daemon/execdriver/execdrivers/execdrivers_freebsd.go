@@ -4,6 +4,7 @@ package execdrivers
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/jail"

@@ -29,19 +29,6 @@ const DriverName = "jail"
 const Version = "0.1"
 
 func init() {
-	// execdriver.RegisterInitFunc(DriverName, func(args *execdriver.InitArgs) error {
-	// 	runtime.LockOSThread()
-
-	// 	path, err := exec.LookPath(args.Args[0])
-	// 	if err != nil {
-	// 		log.Printf("Unable to locate %v", args.Args[0])
-	// 		os.Exit(127)
-	// 	}
-	// 	if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
-	// 		return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
-	// 	}
-	// 	panic("Unreachable")
-	// })
 }
 
 type driver struct {
@@ -187,7 +174,7 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 
 	logrus.Info("[jail] running jexec")
 
-	// build params for the jail
+	// build params for the jexec
 	params := []string{
 		"/usr/sbin/jexec",
 		c.ID,
