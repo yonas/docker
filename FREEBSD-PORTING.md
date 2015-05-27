@@ -72,6 +72,7 @@ Now the docker can setup basic networking, but not nat
 
     # echo "nat on {you-external-interface} from 172.17.0.0/16 to any -> ({your-external-interface})" > /etc/pf.conf
     # pfctl -f /etc/pf.conf
+    # pfctl -e
 
     # ./bundles/latest/binary/docker run -it freebsd:10.1 ping ya.ru # this should work
 
