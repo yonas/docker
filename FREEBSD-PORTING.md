@@ -35,10 +35,6 @@ First we get the sources
     
 Now build the binary    
 
-    (Not sure how to do this properly for golang)
-    # ln -s /usr/local/include/sqlite3.h /usr/include/
-    # ln -s /usr/local/lib/libsqlite3.so* /usr/lib/
-
     # setenv AUTO_GOPATH 1
     # ./hack/make.sh binary 
 
