@@ -45,12 +45,12 @@ This should build the docker executable ./bundles/latest/binary/docker. Now run 
 
 After the daemon is started we can pull the image and start the container
 
-    # ./bundles/latest/binary/docker pull lexaguskov/freebsd-minimal 
-    # ./bundles/latest/binary/docker run lexaguskov/freebsd-minimal echo hello world
+    # ./bundles/latest/binary/docker pull lexaguskov/bsd-minimal 
+    # ./bundles/latest/binary/docker run lexaguskov/bsd-minimal echo hello world
    
 Interactive mode works too
 
-    # ./bundles/latest/binary/docker run -it lexaguskov/freebsd-minimal csh
+    # ./bundles/latest/binary/docker run -it lexaguskov/bsd-minimal csh
 
 # Retrieving real FreeBSD image
 
