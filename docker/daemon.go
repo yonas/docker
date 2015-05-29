@@ -13,8 +13,6 @@ import (
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon"
-	_ "github.com/docker/docker/daemon/execdriver/lxc"
-	_ "github.com/docker/docker/daemon/execdriver/native"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
