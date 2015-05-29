@@ -54,15 +54,11 @@ Interactive mode works too
 
 # Retrieving real FreeBSD image
 
-Since "docker push" command is not working, we have to obtain the image somewhere else.
-
-    # fetch http://download.a-real.ru/freebsd.10.1.amd64.img.txz
-    # tar xf freebsd.10.1.amd64.img.txz
-    # ./bundles/latest/binary/docker import - freebsd:10.1 < bsd.img
+    # ./bundles/latest/binary/docker pull lexaguskov/bsd
 
     Now we can test networking etc.
 
-    # ./bundles/latest/binary/docker run -it freebsd:10.1 ifconfig lo1
+    # ./bundles/latest/binary/docker run -it lexaguskov/bsd ifconfig lo1
 
 # Networking
 
@@ -74,7 +70,7 @@ Now the docker can setup basic networking, but not nat
     # pfctl -f /etc/pf.conf
     # pfctl -e
 
-    # ./bundles/latest/binary/docker run -it freebsd:10.1 ping ya.ru # this should work
+    # ./bundles/latest/binary/docker run -it lexaguskov/bsd ping ya.ru # this should work
 
 # List of working commands and features
 
@@ -102,7 +98,7 @@ Commands:
 * port      - not working
 * ps        - ok
 * pull      - ok
-* push      - not working (server 500 error)
+* push      - ok
 * rename    - ok
 * restart   - ok
 * rm        - ok
@@ -136,7 +132,6 @@ If you wish to help, you can join IRC channel #freebsd-docker on freenode.net.
 
 Now we have following issues:
 * not working "docker load"
-* on "docker push" the hub returns the error
 * the codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
 * netlink functions from libcontainer are not working
 * docker can't load (pull, import or commit) an image if not started from build path
