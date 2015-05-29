@@ -45,24 +45,20 @@ This should build the docker executable ./bundles/latest/binary/docker. Now run 
 
 After the daemon is started we can pull the image and start the container
 
-    # ./bundles/latest/binary/docker pull lexaguskov/bsd-minimal 
-    # ./bundles/latest/binary/docker run lexaguskov/bsd-minimal echo hello world
+    # ./bundles/latest/binary/docker pull lexaguskov/freebsd
+    # ./bundles/latest/binary/docker run lexaguskov/freebsd echo hello world
    
 Interactive mode works too
 
-    # ./bundles/latest/binary/docker run -it lexaguskov/bsd-minimal csh
-
-# Retrieving real FreeBSD image
-
-    # ./bundles/latest/binary/docker pull lexaguskov/bsd
-
-    Now we can test networking etc.
-
-    # ./bundles/latest/binary/docker run -it lexaguskov/bsd ifconfig lo1
+    # ./bundles/latest/binary/docker run -it lexaguskov/freebsd csh
 
 # Networking
 
-Now the docker can setup basic networking, but not nat
+Docker provides each container an unique ip address on shared network interface
+
+    # ./bundles/latest/binary/docker run -it lexaguskov/freebsd ifconfig lo1 
+
+Now the docker can setup basic networking, but not nat, so we need to setup it manually
 
     # kldload pf.ko
 
