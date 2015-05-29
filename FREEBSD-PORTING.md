@@ -40,7 +40,7 @@ Now build the binary
 
 This should build the docker executable ./bundles/latest/binary/docker. Now run the daemon:
 
-    # zfs create -o mountpoint=/dk zroot/docker # mounpoint should be short
+    # zfs create -o mountpoint=/dk zroot/docker 
     # ./bundles/latest/binary/docker -d -e jail -s zfs -g /dk -D
 
 After the daemon is started we can pull the image and start the container
