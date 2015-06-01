@@ -41,39 +41,31 @@ Now build the binary
 
 This should build the docker executable ./bundles/latest/binary/docker. Now run the daemon:
 
-    # zfs create -o mountpoint=/dk zroot/docker # mounpoint should be short
+    # zfs create -o mountpoint=/dk zroot/docker 
     # ./bundles/latest/binary/docker -d -e jail -s zfs -g /dk -D
 
 After the daemon is started we can pull the image and start the container
 
-    # ./bundles/latest/binary/docker pull lexaguskov/bsd-minimal 
-    # ./bundles/latest/binary/docker run lexaguskov/bsd-minimal echo hello world
+    # ./bundles/latest/binary/docker pull lexaguskov/freebsd
+    # ./bundles/latest/binary/docker run lexaguskov/freebsd echo hello world
    
 Interactive mode works too
 
-    # ./bundles/latest/binary/docker run -it lexaguskov/bsd-minimal csh
-
-# Retrieving real FreeBSD image
-
-Since "docker push" command is not working, we have to obtain the image somewhere else.
-
-    # fetch http://download.a-real.ru/freebsd.10.1.amd64.img.txz
-    # tar xf freebsd.10.1.amd64.img.txz
-    # ./bundles/latest/binary/docker import - freebsd:10.1 < bsd.img
-
-    Now we can test networking etc.
-
-    # ./bundles/latest/binary/docker run -it freebsd:10.1 ifconfig lo1
+    # ./bundles/latest/binary/docker run -it lexaguskov/freebsd csh
 
 # Networking
 
-Now the docker can setup basic networking, but not nat
+Docker provides each container an unique ip address on shared network interface
+
+    # ./bundles/latest/binary/docker run -it lexaguskov/freebsd ifconfig lo1 
+
+Now the docker can setup basic networking, but not nat, so we need to setup it manually
 
     # echo "nat on {you-external-interface} from 172.17.0.0/16 to any -> ({your-external-interface})" > /etc/pf.conf
     # pfctl -f /etc/pf.conf
     # pfctl -e
 
-    # ./bundles/latest/binary/docker run -it freebsd:10.1 ping ya.ru # this should work
+    # ./bundles/latest/binary/docker run -it lexaguskov/bsd ping ya.ru # this should work
 
 # List of working commands and features
 
@@ -101,7 +93,7 @@ Commands:
 * port      - ok
 * ps        - ok
 * pull      - ok
-* push      - not working (server 500 error)
+* push      - ok
 * rename    - ok
 * restart   - ok
 * rm        - ok
