@@ -126,6 +126,12 @@ func InitDriver(config *Config) error {
 
 	logrus.Debugf("[bridge] init driver")
 
+  // try to modprobe bridge first
+  // see gh#12177
+  if out, err := exec.Command("kldload", "-n", "pf").Output(); err != nil {
+    logrus.Warnf("Running kldload pf failed with message: %s, error: %v", out, err)
+  }
+
 	initPortMapper()
 
 	if config.DefaultIp != nil {

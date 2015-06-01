@@ -8,11 +8,12 @@ Major milestones for porting docker on FreeBSD are:
 * load an image and create the container (aka working graphdriver) (DONE)
 * run the container (DONE)
 * working top\start\stop\kill (aka working execdriver) (DONE)
-* working networking aka NAT (IN PROGRESS)
+* working simple networking aka NAT on shared system interface (IN PROGRESS)
 * working port forward (aka working networkdriver)
 * working volumes and links
+* working virtualized networking aka NAT on VINET 
 * working limits
-* major code cleanup and steps to push code to docker project
+* major code cleanup and steps to push code to docker project (IN PROGRESS)
 
 (See the bigger list below)
 
@@ -68,8 +69,6 @@ Since "docker push" command is not working, we have to obtain the image somewher
 
 Now the docker can setup basic networking, but not nat
 
-    # kldload pf.ko
-
     # echo "nat on {you-external-interface} from 172.17.0.0/16 to any -> ({your-external-interface})" > /etc/pf.conf
     # pfctl -f /etc/pf.conf
     # pfctl -e
@@ -99,7 +98,7 @@ Commands:
 * logout    - ok
 * logs      - ok
 * pause     - not working (not supported on freebsd)
-* port      - not working
+* port      - ok
 * ps        - ok
 * pull      - ok
 * push      - not working (server 500 error)
@@ -124,10 +123,11 @@ Features:
 * container creation    - ok
 * container stop\start  - ok
 * build on FreeBSD 10.1 - ok
-* NAT                   - partial support
-* port forward          - not working
+* shared networking     - partial support
+* port forward          - ok
 * volumes               - not working
 * links                 - not working
+* virtual netowrking    - not working
 * limits                - not working
 
 # Participating
@@ -136,8 +136,8 @@ If you wish to help, you can join IRC channel #freebsd-docker on freenode.net.
 
 Now we have following issues:
 * not working "docker load"
-* on "docker push" the hub returns the error
-* the codebase must be syncronized with docker master branch (they have replaced networkdriver with a library)
+* not working "docker stats"
+* not working limits
 * netlink functions from libcontainer are not working
 * docker can't load (pull, import or commit) an image if not started from build path
 
