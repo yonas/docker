@@ -875,7 +875,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 }
 
 func initNetworkController(config *Config) (libnetwork.NetworkController, error) {
-	controller, err := libnetwork.New()
+	controller, err := libnetwork.New("")
 	if err != nil {
 		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
 	}

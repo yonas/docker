@@ -46,14 +46,6 @@ func i2e(i interface{}) *endpointResource {
 	return s
 }
 
-func i2c(i interface{}) *libnetwork.ContainerData {
-	s, ok := i.(*libnetwork.ContainerData)
-	if !ok {
-		panic(fmt.Sprintf("Failed i2c for %v", i))
-	}
-	return s
-}
-
 func i2eL(i interface{}) []*endpointResource {
 	s, ok := i.([]*endpointResource)
 	if !ok {
@@ -76,6 +68,25 @@ func i2nL(i interface{}) []*networkResource {
 		panic(fmt.Sprintf("Failed i2nL for %v", i))
 	}
 	return s
+}
+
+func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkController, libnetwork.Network) {
+	c, err := libnetwork.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nw, err := c.NewNetwork(bridgeNetType, network, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return c, nw
 }
 
 func TestMain(m *testing.M) {
@@ -148,7 +159,7 @@ func TestJson(t *testing.T) {
 func TestCreateDeleteNetwork(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,8 +195,15 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
-	ops := make(map[string]interface{})
-	ops[netlabel.GenericData] = options.Generic{}
+	ops := options.Generic{
+		netlabel.EnableIPv6: true,
+		netlabel.GenericData: map[string]string{
+			"BridgeName":            "abc",
+			"AllowNonDefaultBridge": "true",
+			"FixedCIDRv6":           "fe80::1/64",
+			"AddressIP":             "172.28.30.254/24",
+		},
+	}
 	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Options: ops}
 	goodBody, err := json.Marshal(nc)
 	if err != nil {
@@ -219,7 +237,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 func TestGetNetworksAndEndpoints(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -483,7 +501,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 }
 
 func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,19 +516,7 @@ func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
 func TestDetectGetEndpointsInvalidQueryComposition(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = c.NewNetwork(bridgeNetType, "network", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestNetwork(t, "network")
 
 	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
 	_, errRsp := procGetEndpoints(c, vars, nil)
@@ -522,19 +528,7 @@ func TestDetectGetEndpointsInvalidQueryComposition(t *testing.T) {
 func TestFindNetworkUtil(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	nw, err := c.NewNetwork(bridgeNetType, "network", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, nw := createTestNetwork(t, "network")
 	nid := nw.ID()
 
 	defer checkPanic(t)
@@ -598,7 +592,7 @@ func TestFindNetworkUtil(t *testing.T) {
 func TestCreateDeleteEndpoints(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -724,7 +718,7 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 func TestJoinLeave(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -801,13 +795,13 @@ func TestJoinLeave(t *testing.T) {
 	}
 
 	vars[urlEpName] = "endpoint"
-	cdi, errRsp := procJoinEndpoint(c, vars, jlb)
+	key, errRsp := procJoinEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
-	cd := i2c(cdi)
-	if cd.SandboxKey == "" {
+	keyStr := i2s(key)
+	if keyStr == "" {
 		t.Fatalf("Empty sandbox key")
 	}
 	_, errRsp = procDeleteEndpoint(c, vars, nil)
@@ -880,19 +874,7 @@ func TestJoinLeave(t *testing.T) {
 func TestFindEndpointUtil(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	nw, err := c.NewNetwork(bridgeNetType, "second", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, nw := createTestNetwork(t, "network")
 	nid := nw.ID()
 
 	ep, err := nw.CreateEndpoint("secondEp", nil)
@@ -1124,7 +1106,7 @@ func TestwriteJSON(t *testing.T) {
 func TestHttpHandlerUninit(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1190,7 +1172,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 
 	rsp := newWriter()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1222,14 +1204,28 @@ func TestEndToEnd(t *testing.T) {
 
 	rsp := newWriter()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
 	handleRequest := NewHTTPHandler(c)
 
+	ops := options.Generic{
+		netlabel.EnableIPv6: true,
+		netlabel.GenericData: map[string]string{
+			"BridgeName":            "cdef",
+			"FixedCIDRv6":           "fe80:2000::1/64",
+			"EnableIPv6":            "true",
+			"Mtu":                   "1460",
+			"EnableIPTables":        "true",
+			"AddressIP":             "172.28.30.254/16",
+			"EnableUserlandProxy":   "true",
+			"AllowNonDefaultBridge": "true",
+		},
+	}
+
 	// Create network
-	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType}
+	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, Options: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)

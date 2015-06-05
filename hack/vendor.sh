@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+#set -e
 
 cd "$(dirname "$BASH_SOURCE")/.."
 
@@ -55,9 +55,40 @@ clone hg code.google.com/p/go.net 84a4013f96e0
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork f72ad20491e8c46d9664da3f32a0eddb301e7c8d
+clone git github.com/docker/libnetwork a09a60a123b4106954e5b42ed5ec41f264eeb8bf
 clone git github.com/vishvananda/netns 008d17ae001344769b031375bdb38a86219154c6
 clone git github.com/vishvananda/netlink 8eb64238879fed52fd51c5b30ad20b928fb4c36c
+
+clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
+clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
+
+#libnetwork uses swarm discovery and store libraries
+clone git github.com/docker/swarm 54dfabd2521314de1c5b036f6c609efbe09df4ea
+mv src/github.com/docker/swarm/discovery tmp-discovery
+mv src/github.com/docker/swarm/pkg/store tmp-store
+rm -rf src/github.com/docker/swarm
+mkdir -p src/github.com/docker/swarm
+mv tmp-discovery src/github.com/docker/swarm/discovery
+mkdir -p src/github.com/docker/swarm/pkg
+mv tmp-store src/github.com/docker/swarm/pkg/store
+
+clone git github.com/hashicorp/consul 954aec66231b79c161a4122b023fbcad13047f79
+mv src/github.com/hashicorp/consul/api tmp-api
+rm -rf src/github.com/hashicorp/consul
+mkdir -p src/github.com/hashicorp/consul
+mv tmp-api src/github.com/hashicorp/consul/api
+
+clone git github.com/coreos/go-etcd 73a8ef737e8ea002281a28b4cb92a1de121ad4c6
+mv src/github.com/coreos/go-etcd/etcd tmp-etcd
+rm -rf src/github.com/coreos/go-etcd
+mkdir -p src/github.com/coreos/go-etcd
+mv tmp-etcd src/github.com/coreos/go-etcd/etcd
+
+clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
+mv src/github.com/samuel/go-zookeeper/zk tmp-zk
+rm -rf src/github.com/samuel/go-zookeeper
+mkdir -p src/github.com/samuel/go-zookeeper
+mv tmp-zk src/github.com/samuel/go-zookeeper/zk
 
 # get distribution packages
 clone git github.com/docker/distribution b9eeb328080d367dbde850ec6e94f1e4ac2b5efe
@@ -69,7 +100,7 @@ mv tmp-digest src/github.com/docker/distribution/digest
 mkdir -p src/github.com/docker/distribution/registry
 mv tmp-api src/github.com/docker/distribution/registry/api
 
-clone git github.com/docker/libcontainer v2.1.0
+clone git github.com/docker/libcontainer 57a50dd378e66d234faef0e61fa98718371156ff
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
 clone git github.com/coreos/go-systemd v2
 clone git github.com/godbus/dbus v2

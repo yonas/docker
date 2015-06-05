@@ -12,6 +12,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -234,6 +235,15 @@ func (n *networkNamespace) RemoveInterface(i *Interface) error {
 		return err
 	}
 
+	n.Lock()
+	for index, intf := range n.sinfo.Interfaces {
+		if intf == i {
+			n.sinfo.Interfaces = append(n.sinfo.Interfaces[:index], n.sinfo.Interfaces[index+1:]...)
+			break
+		}
+	}
+	n.Unlock()
+
 	return nil
 }
 
@@ -323,7 +333,38 @@ func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
 	return err
 }
 
+func (n *networkNamespace) AddStaticRoute(r *types.StaticRoute) error {
+	err := programRoute(n.path, r.Destination, r.NextHop)
+	if err == nil {
+		n.Lock()
+		n.sinfo.StaticRoutes = append(n.sinfo.StaticRoutes, r)
+		n.Unlock()
+	}
+	return err
+}
+
+func (n *networkNamespace) RemoveStaticRoute(r *types.StaticRoute) error {
+	err := removeRoute(n.path, r.Destination, r.NextHop)
+	if err == nil {
+		n.Lock()
+		lastIndex := len(n.sinfo.StaticRoutes) - 1
+		for i, v := range n.sinfo.StaticRoutes {
+			if v == r {
+				// Overwrite the route we're removing with the last element
+				n.sinfo.StaticRoutes[i] = n.sinfo.StaticRoutes[lastIndex]
+				// Shorten the slice to trim the extra element
+				n.sinfo.StaticRoutes = n.sinfo.StaticRoutes[:lastIndex]
+				break
+			}
+		}
+		n.Unlock()
+	}
+	return err
+}
+
 func (n *networkNamespace) Interfaces() []*Interface {
+	n.Lock()
+	defer n.Unlock()
 	return n.sinfo.Interfaces
 }
 
