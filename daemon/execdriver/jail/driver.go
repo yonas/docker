@@ -96,7 +96,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"allow.raw_sockets=1", // TODO: this must be put in an option
 	}
 
-	if c.Network.Interface != nil {
+	if c.Network != nil {
 		// for some reason if HostNetworking is enabled, c.Network doesnt contain interface name and ip
 		if !c.Network.HostNetworking {
 			params = append(params,
