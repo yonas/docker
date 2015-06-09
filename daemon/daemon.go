@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
+//	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,7 +16,7 @@ import (
 
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/netlabel"
+//	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 
 	"github.com/Sirupsen/logrus"
@@ -891,7 +891,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 		return nil, fmt.Errorf("Error creating default \"null\" network: %v", err)
 	}
 
-	// Initialize default driver "host"
+/*	// Initialize default driver "host"
 	if err := controller.ConfigureNetworkDriver("host", options.Generic{}); err != nil {
 		return nil, fmt.Errorf("Error initializing host driver: %v", err)
 	}
@@ -960,7 +960,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating default \"bridge\" network: %v", err)
 	}
-
+*/
 	return controller, nil
 }
 
