@@ -18,7 +18,7 @@ import (
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
 	nwapi "github.com/docker/libnetwork/api"
-	"github.com/docker/libnetwork/netlabel"
+//	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 
 	"github.com/Sirupsen/logrus"
