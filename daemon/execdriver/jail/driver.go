@@ -99,10 +99,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if c.Network != nil {
 		// for some reason if HostNetworking is enabled, c.Network doesnt contain interface name and ip
 		if !c.Network.HostNetworking {
-			params = append(params,
-				"interface="+c.Network.Interface.Bridge,
-				"ip4.addr="+fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-			)
+			if(c.Network.Interface != nil) {
+				params = append(params,
+					"interface="+c.Network.Interface.Bridge,
+					"ip4.addr="+fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
+				)
+			}
 		}
 	} else {
 		logrus.Debug("[jail] networking is disabled")
