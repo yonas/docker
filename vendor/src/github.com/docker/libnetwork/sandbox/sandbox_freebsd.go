@@ -4,6 +4,7 @@ import (
   "sync"
   "net"
 
+  "github.com/Sirupsen/logrus"
   "github.com/docker/libnetwork/types"
 )
 
@@ -57,6 +58,8 @@ func (n *FreebsdSandbox) Interfaces() []*Interface {
   // to only provide a prefix for DstName. The AddInterface api will auto-generate
   // an appropriate suffix for the DstName to disambiguate.
 func (n *FreebsdSandbox) AddInterface(i *Interface) error {
+  logrus.Debugf("[sandbox] add if");
+
   n.Lock()
   n.sinfo.Interfaces = append(n.sinfo.Interfaces, i)
   n.Unlock()

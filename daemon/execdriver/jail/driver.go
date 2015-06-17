@@ -65,11 +65,35 @@ func copyFile(src string, dest string) error {
 	return nil
 }
 
+func setupMounts(mnts []execdriver.Mount) {
+	for _, m := range mnts {
+		logrus.Debugf("[mount] %s->%s rw=%b sl=%b", m.Source, m.Destination, m.Writable, m.Slave)
+
+		// flags := syscall.MS_BIND | syscall.MS_REC
+		// // if !m.Writable {
+		// // 	flags |= syscall.MS_RDONLY
+		// // }
+		// // if m.Slave {
+		// // 	flags |= syscall.MS_SLAVE
+		// // }
+		// // container.Mounts = append(container.Mounts, &configs.Mount{
+		// // 	Source:      m.Source,
+		// // 	Destination: m.Destination,
+		// // 	Device:      "bind",
+		// // 	Flags:       flags,
+		// })
+
+
+	}
+}
+
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	var (
 		term execdriver.Terminal
 		err  error
 	)
+
+	setupMounts(c.Mounts)
 
 	// setting terminal parameters
 	if c.ProcessConfig.Tty {
@@ -97,6 +121,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 
 	if c.Network != nil {
+		logrus.Debugf("net %s", c.Network);
+		
 		// for some reason if HostNetworking is enabled, c.Network doesnt contain interface name and ip
 		if !c.Network.HostNetworking {
 			if(c.Network.Interface != nil) {
