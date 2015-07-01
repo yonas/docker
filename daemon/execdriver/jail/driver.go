@@ -186,8 +186,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if err := exec.Command("umount", root+"/dev").Run(); err != nil {
 		logrus.Debugf("umount %s failed: %s", c.ID, err)
 	}
-	exec.Command("umount", root+"/proc").Run()
-	exec.Command("umount", root+"/sys").Run()
+	if err := exec.Command("umount", root+"/proc").Run(); err != nil {
+		logrus.Debugf("umount %s failed: %s", c.ID, err)
+	}
+	if err := exec.Command("umount", root+"/sys").Run(); err != nil {
+		logrus.Debugf("umount %s failed: %s", c.ID, err)
+	}
 
 	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: false}, waitErr
 }
