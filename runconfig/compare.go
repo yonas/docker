@@ -1,8 +1,10 @@
 package runconfig
 
+import "github.com/docker/engine-api/types/container"
+
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs
-func Compare(a, b *Config) bool {
+func Compare(a, b *container.Config) bool {
 	if a == nil || b == nil ||
 		a.OpenStdin || b.OpenStdin {
 		return false
@@ -18,7 +20,6 @@ func Compare(a, b *Config) bool {
 	if a.Cmd.Len() != b.Cmd.Len() ||
 		len(a.Env) != len(b.Env) ||
 		len(a.Labels) != len(b.Labels) ||
-		len(a.PortSpecs) != len(b.PortSpecs) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
 		a.Entrypoint.Len() != b.Entrypoint.Len() ||
 		len(a.Volumes) != len(b.Volumes) {
@@ -39,11 +40,6 @@ func Compare(a, b *Config) bool {
 	}
 	for k, v := range a.Labels {
 		if v != b.Labels[k] {
-			return false
-		}
-	}
-	for i := 0; i < len(a.PortSpecs); i++ {
-		if a.PortSpecs[i] != b.PortSpecs[i] {
 			return false
 		}
 	}

@@ -3,25 +3,21 @@ package main
 import (
 	"fmt"
 	"testing"
-	"time"
 
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 )
 
 func Test(t *testing.T) {
+	reexec.Init() // This is required for external graphdriver tests
+
+	if !isLocalDaemon {
+		fmt.Println("INFO: Testing against a remote daemon")
+	} else {
+		fmt.Println("INFO: Testing against a local daemon")
+	}
+
 	check.TestingT(t)
-}
-
-type TimerSuite struct {
-	start time.Time
-}
-
-func (s *TimerSuite) SetUpTest(c *check.C) {
-	s.start = time.Now()
-}
-
-func (s *TimerSuite) TearDownTest(c *check.C) {
-	fmt.Printf("%-60s%.2f\n", c.TestName(), time.Since(s.start).Seconds())
 }
 
 func init() {
@@ -29,13 +25,14 @@ func init() {
 }
 
 type DockerSuite struct {
-	TimerSuite
 }
 
 func (s *DockerSuite) TearDownTest(c *check.C) {
+	unpauseAllContainers()
 	deleteAllContainers()
 	deleteAllImages()
-	s.TimerSuite.TearDownTest(c)
+	deleteAllVolumes()
+	deleteAllNetworks()
 }
 
 func init() {
@@ -47,15 +44,80 @@ func init() {
 type DockerRegistrySuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
+	d   *Daemon
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
-	s.reg = setupRegistry(c)
-	s.ds.SetUpTest(c)
+	testRequires(c, DaemonIsLinux, RegistryHosting)
+	s.reg = setupRegistry(c, false, false)
+	s.d = NewDaemon(c)
 }
 
 func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
-	s.reg.Close()
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.d != nil {
+		s.d.Stop()
+	}
+	s.ds.TearDownTest(c)
+}
+
+func init() {
+	check.Suite(&DockerSchema1RegistrySuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerSchema1RegistrySuite struct {
+	ds  *DockerSuite
+	reg *testRegistryV2
+	d   *Daemon
+}
+
+func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux, RegistryHosting)
+	s.reg = setupRegistry(c, true, false)
+	s.d = NewDaemon(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.d != nil {
+		s.d.Stop()
+	}
+	s.ds.TearDownTest(c)
+}
+
+func init() {
+	check.Suite(&DockerRegistryAuthSuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerRegistryAuthSuite struct {
+	ds  *DockerSuite
+	reg *testRegistryV2
+	d   *Daemon
+}
+
+func (s *DockerRegistryAuthSuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux, RegistryHosting)
+	s.reg = setupRegistry(c, false, true)
+	s.d = NewDaemon(c)
+}
+
+func (s *DockerRegistryAuthSuite) TearDownTest(c *check.C) {
+	if s.reg != nil {
+		out, err := s.d.Cmd("logout", privateRegistryURL)
+		c.Assert(err, check.IsNil, check.Commentf(out))
+		s.reg.Close()
+	}
+	if s.d != nil {
+		s.d.Stop()
+	}
 	s.ds.TearDownTest(c)
 }
 
@@ -71,11 +133,42 @@ type DockerDaemonSuite struct {
 }
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	s.d = NewDaemon(c)
-	s.ds.SetUpTest(c)
 }
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
-	s.d.Stop()
+	testRequires(c, DaemonIsLinux)
+	if s.d != nil {
+		s.d.Stop()
+	}
+	s.ds.TearDownTest(c)
+}
+
+func init() {
+	check.Suite(&DockerTrustSuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerTrustSuite struct {
+	ds  *DockerSuite
+	reg *testRegistryV2
+	not *testNotary
+}
+
+func (s *DockerTrustSuite) SetUpTest(c *check.C) {
+	testRequires(c, RegistryHosting, NotaryHosting)
+	s.reg = setupRegistry(c, false, false)
+	s.not = setupNotary(c)
+}
+
+func (s *DockerTrustSuite) TearDownTest(c *check.C) {
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.not != nil {
+		s.not.Close()
+	}
 	s.ds.TearDownTest(c)
 }

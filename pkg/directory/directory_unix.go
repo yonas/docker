@@ -1,4 +1,4 @@
-// +build linux, +build freebsd
+// +build linux freebsd
 
 package directory
 

@@ -3,15 +3,20 @@ package client
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"os"
+	"runtime"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
+	Cli "github.com/docker/docker/cli"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
-	"github.com/docker/docker/pkg/resolvconf/dns"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/pkg/stringid"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/libnetwork/resolvconf/dns"
 )
 
 func (cid *cidFile) Close() error {
@@ -34,11 +39,35 @@ func (cid *cidFile) Write(id string) error {
 	return nil
 }
 
+// if container start fails with 'command not found' error, return 127
+// if container start fails with 'command cannot be invoked' error, return 126
+// return 125 for generic docker daemon failures
+func runStartContainerErr(err error) error {
+	trimmedErr := strings.Trim(err.Error(), "Error response from daemon: ")
+	statusError := Cli.StatusError{}
+	derrCmdNotFound := derr.ErrorCodeCmdNotFound.Message()
+	derrCouldNotInvoke := derr.ErrorCodeCmdCouldNotBeInvoked.Message()
+	derrNoSuchImage := derr.ErrorCodeNoSuchImageHash.Message()
+	derrNoSuchImageTag := derr.ErrorCodeNoSuchImageTag.Message()
+	switch trimmedErr {
+	case derrCmdNotFound:
+		statusError = Cli.StatusError{StatusCode: 127}
+	case derrCouldNotInvoke:
+		statusError = Cli.StatusError{StatusCode: 126}
+	case derrNoSuchImage, derrNoSuchImageTag:
+		statusError = Cli.StatusError{StatusCode: 125}
+	default:
+		statusError = Cli.StatusError{StatusCode: 125}
+	}
+	return statusError
+}
+
 // CmdRun runs a command in a new container.
 //
 // Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdRun(args ...string) error {
-	cmd := cli.Subcmd("run", "IMAGE [COMMAND] [ARG...]", "Run a command in a new container", true)
+	cmd := Cli.Subcmd("run", []string{"IMAGE [COMMAND] [ARG...]"}, Cli.DockerCommands["run"].Description, true)
+	addTrustedFlags(cmd, true)
 
 	// These are flags not stored in Config/HostConfig
 	var (
@@ -46,6 +75,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Run container in background and print container ID")
 		flSigProxy   = cmd.Bool([]string{"-sig-proxy"}, true, "Proxy received signals to the process")
 		flName       = cmd.String([]string{"-name"}, "", "Assign a name to the container")
+		flDetachKeys = cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 		flAttach     *opts.ListOpts
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
@@ -53,17 +83,23 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
 
-	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
+	config, hostConfig, networkingConfig, cmd, err := runconfigopts.Parse(cmd, args)
+
 	// just in case the Parse does not exit
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
+		os.Exit(125)
 	}
 
-	if len(hostConfig.Dns) > 0 {
+	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
+		fmt.Fprintf(cli.err, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.\n")
+	}
+
+	if len(hostConfig.DNS) > 0 {
 		// check the DNS settings passed via --dns against
 		// localhost regexp to warn if they are trying to
 		// set a DNS to a localhost address
-		for _, dnsIP := range hostConfig.Dns {
+		for _, dnsIP := range hostConfig.DNS {
 			if dns.IsLocalhost(dnsIP) {
 				fmt.Fprintf(cli.err, "WARNING: Localhost DNS setting (--dns=%s) may fail in containers.\n", dnsIP)
 				break
@@ -74,6 +110,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+
+	config.ArgsEscaped = false
 
 	if !*flDetach {
 		if err := cli.CheckTtyInput(config.AttachStdin, config.Tty); err != nil {
@@ -102,9 +140,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		sigProxy = false
 	}
 
-	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
+	// Telling the Windows daemon the initial size of the tty during start makes
+	// a far better user experience rather than relying on subsequent resizes
+	// to cause things to catch up.
+	if runtime.GOOS == "windows" {
+		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = cli.getTtySize()
+	}
+
+	createResponse, err := cli.createContainer(config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, *flName)
 	if err != nil {
-		return err
+		cmd.ReportError(err.Error(), true)
+		return runStartContainerErr(err)
 	}
 	if sigProxy {
 		sigc := cli.forwardAllSignals(createResponse.ID)
@@ -125,71 +171,66 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if *flAutoRemove && (hostConfig.RestartPolicy.IsAlways() || hostConfig.RestartPolicy.IsOnFailure()) {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
-	// We need to instantiate the chan because the select needs it. It can
-	// be closed but can't be uninitialized.
-	hijacked := make(chan io.Closer)
-	// Block the return until the chan gets closed
-	defer func() {
-		logrus.Debugf("End of CmdRun(), Waiting for hijack to finish.")
-		if _, ok := <-hijacked; ok {
-			fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
-		}
-	}()
+
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		var (
 			out, stderr io.Writer
 			in          io.ReadCloser
-			v           = url.Values{}
 		)
-		v.Set("stream", "1")
 		if config.AttachStdin {
-			v.Set("stdin", "1")
 			in = cli.in
 		}
 		if config.AttachStdout {
-			v.Set("stdout", "1")
 			out = cli.out
 		}
 		if config.AttachStderr {
-			v.Set("stderr", "1")
 			if config.Tty {
 				stderr = cli.out
 			} else {
 				stderr = cli.err
 			}
 		}
-		errCh = promise.Go(func() error {
-			return cli.hijack("POST", "/containers/"+createResponse.ID+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked, nil)
-		})
-	} else {
-		close(hijacked)
-	}
-	// Acknowledge the hijack before starting
-	select {
-	case closer := <-hijacked:
-		// Make sure that the hijack gets closed when returning (results
-		// in closing the hijack chan and freeing server's goroutines)
-		if closer != nil {
-			defer closer.Close()
+
+		if *flDetachKeys != "" {
+			cli.configFile.DetachKeys = *flDetachKeys
 		}
-	case err := <-errCh:
+
+		options := types.ContainerAttachOptions{
+			ContainerID: createResponse.ID,
+			Stream:      true,
+			Stdin:       config.AttachStdin,
+			Stdout:      config.AttachStdout,
+			Stderr:      config.AttachStderr,
+			DetachKeys:  cli.configFile.DetachKeys,
+		}
+
+		resp, err := cli.client.ContainerAttach(options)
 		if err != nil {
-			logrus.Debugf("Error hijack: %s", err)
 			return err
 		}
+		if in != nil && config.Tty {
+			if err := cli.setRawTerminal(); err != nil {
+				return err
+			}
+			defer cli.restoreTerminal(in)
+		}
+		errCh = promise.Go(func() error {
+			return cli.holdHijackedConnection(config.Tty, in, out, stderr, resp)
+		})
 	}
 
-	defer func() {
-		if *flAutoRemove {
-			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, nil)); err != nil {
-				fmt.Fprintf(cli.err, "Error deleting container: %s\n", err)
+	if *flAutoRemove {
+		defer func() {
+			if err := cli.removeContainer(createResponse.ID, true, false, false); err != nil {
+				fmt.Fprintf(cli.err, "%v\n", err)
 			}
-		}
-	}()
+		}()
+	}
 
 	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
-		return err
+	if err := cli.client.ContainerStart(createResponse.ID); err != nil {
+		cmd.ReportError(err.Error(), false)
+		return runStartContainerErr(err)
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
@@ -216,10 +257,20 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	// Attached mode
 	if *flAutoRemove {
+		// Warn user if they detached us
+		js, err := cli.client.ContainerInspect(createResponse.ID)
+		if err != nil {
+			return runStartContainerErr(err)
+		}
+		if js.State.Running == true || js.State.Paused == true {
+			fmt.Fprintf(cli.out, "Detached from %s, awaiting its termination in order to uphold \"--rm\".\n",
+				stringid.TruncateID(createResponse.ID))
+		}
+
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
-		if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/wait", nil, nil)); err != nil {
-			return err
+		if status, err = cli.client.ContainerWait(createResponse.ID); err != nil {
+			return runStartContainerErr(err)
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
 			return err
@@ -228,7 +279,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
 			// In non-TTY mode, we can't detach, so we must wait for container exit
-			if status, err = waitForExit(cli, createResponse.ID); err != nil {
+			if status, err = cli.client.ContainerWait(createResponse.ID); err != nil {
 				return err
 			}
 		} else {
@@ -240,7 +291,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 	if status != 0 {
-		return StatusError{StatusCode: status}
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }

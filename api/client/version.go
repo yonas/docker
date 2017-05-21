@@ -1,55 +1,92 @@
 package client
 
 import (
-	"encoding/json"
-	"fmt"
 	"runtime"
+	"text/template"
+	"time"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/autogen/dockerversion"
+	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types"
 )
+
+var versionTemplate = `Client:
+ Version:      {{.Client.Version}}
+ API version:  {{.Client.APIVersion}}
+ Go version:   {{.Client.GoVersion}}
+ Git commit:   {{.Client.GitCommit}}
+ Built:        {{.Client.BuildTime}}
+ OS/Arch:      {{.Client.Os}}/{{.Client.Arch}}{{if .Client.Experimental}}
+ Experimental: {{.Client.Experimental}}{{end}}{{if .ServerOK}}
+
+Server:
+ Version:      {{.Server.Version}}
+ API version:  {{.Server.APIVersion}}
+ Go version:   {{.Server.GoVersion}}
+ Git commit:   {{.Server.GitCommit}}
+ Built:        {{.Server.BuildTime}}
+ OS/Arch:      {{.Server.Os}}/{{.Server.Arch}}{{if .Server.Experimental}}
+ Experimental: {{.Server.Experimental}}{{end}}{{end}}`
 
 // CmdVersion shows Docker version information.
 //
 // Available version information is shown for: client Docker version, client API version, client Go version, client Git commit, client OS/Arch, server Docker version, server API version, server Go version, server Git commit, and server OS/Arch.
 //
 // Usage: docker version
-func (cli *DockerCli) CmdVersion(args ...string) error {
-	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
+func (cli *DockerCli) CmdVersion(args ...string) (err error) {
+	cmd := Cli.Subcmd("version", nil, Cli.DockerCommands["version"].Description, true)
+	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	cmd.Require(flag.Exact, 0)
 
-	cmd.ParseFlags(args, false)
+	cmd.ParseFlags(args, true)
 
-	if dockerversion.VERSION != "" {
-		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
-	}
-	fmt.Fprintf(cli.out, "Client API version: %s\n", api.APIVERSION)
-	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
-	if dockerversion.GITCOMMIT != "" {
-		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
-	}
-	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
-
-	stream, _, err := cli.call("GET", "/version", nil, nil)
-	if err != nil {
-		return err
+	templateFormat := versionTemplate
+	if *tmplStr != "" {
+		templateFormat = *tmplStr
 	}
 
-	var v types.Version
-	if err := json.NewDecoder(stream).Decode(&v); err != nil {
-		fmt.Fprintf(cli.err, "Error reading remote version: %s\n", err)
-		return err
+	var tmpl *template.Template
+	if tmpl, err = template.New("").Funcs(funcMap).Parse(templateFormat); err != nil {
+		return Cli.StatusError{StatusCode: 64,
+			Status: "Template parsing error: " + err.Error()}
 	}
 
-	fmt.Fprintf(cli.out, "Server version: %s\n", v.Version)
-	if v.ApiVersion != "" {
-		fmt.Fprintf(cli.out, "Server API version: %s\n", v.ApiVersion)
+	vd := types.VersionResponse{
+		Client: &types.Version{
+			Version:      dockerversion.Version,
+			APIVersion:   cli.client.ClientVersion(),
+			GoVersion:    runtime.Version(),
+			GitCommit:    dockerversion.GitCommit,
+			BuildTime:    dockerversion.BuildTime,
+			Os:           runtime.GOOS,
+			Arch:         runtime.GOARCH,
+			Experimental: utils.ExperimentalBuild(),
+		},
 	}
-	fmt.Fprintf(cli.out, "Go version (server): %s\n", v.GoVersion)
-	fmt.Fprintf(cli.out, "Git commit (server): %s\n", v.GitCommit)
-	fmt.Fprintf(cli.out, "OS/Arch (server): %s/%s\n", v.Os, v.Arch)
 
-	return nil
+	serverVersion, err := cli.client.ServerVersion()
+	if err == nil {
+		vd.Server = &serverVersion
+	}
+
+	// first we need to make BuildTime more human friendly
+	t, errTime := time.Parse(time.RFC3339Nano, vd.Client.BuildTime)
+	if errTime == nil {
+		vd.Client.BuildTime = t.Format(time.ANSIC)
+	}
+
+	if vd.ServerOK() {
+		t, errTime = time.Parse(time.RFC3339Nano, vd.Server.BuildTime)
+		if errTime == nil {
+			vd.Server.BuildTime = t.Format(time.ANSIC)
+		}
+	}
+
+	if err2 := tmpl.Execute(cli.out, vd); err2 != nil && err == nil {
+		err = err2
+	}
+	cli.out.Write([]byte{'\n'})
+	return err
 }

@@ -9,7 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/systemd"
+	//"github.com/docker/docker/pkg/systemd"
 )
 
 // newServer sets up the required serverCloser and does protocol specific checking.

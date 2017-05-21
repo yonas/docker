@@ -3,7 +3,7 @@ package daemon
 import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/ulimit"
+	//"github.com/docker/docker/pkg/ulimit"
 )
 
 var (

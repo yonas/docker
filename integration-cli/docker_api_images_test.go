@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 
@@ -16,119 +16,114 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 	name2 := "utest/docker:tag2"
 	name3 := "utest:5000/docker:tag3"
 	for _, n := range []string{name, name2, name3} {
-		if out, err := exec.Command(dockerBinary, "tag", "busybox", n).CombinedOutput(); err != nil {
-			c.Fatal(err, out)
-		}
+		dockerCmd(c, "tag", "busybox", n)
 	}
 	type image types.Image
 	getImages := func(filter string) []image {
 		v := url.Values{}
 		v.Set("filter", filter)
 		status, b, err := sockRequest("GET", "/images/json?"+v.Encode(), nil)
-		c.Assert(status, check.Equals, http.StatusOK)
-		c.Assert(err, check.IsNil)
+		c.Assert(err, checker.IsNil)
+		c.Assert(status, checker.Equals, http.StatusOK)
 
 		var images []image
-		if err := json.Unmarshal(b, &images); err != nil {
-			c.Fatal(err)
-		}
+		err = json.Unmarshal(b, &images)
+		c.Assert(err, checker.IsNil)
 
 		return images
 	}
 
-	errMsg := "incorrect number of matches returned"
-	if images := getImages("utest*/*"); len(images[0].RepoTags) != 2 {
-		c.Fatal(errMsg)
-	}
-	if images := getImages("utest"); len(images[0].RepoTags) != 1 {
-		c.Fatal(errMsg)
-	}
-	if images := getImages("utest*"); len(images[0].RepoTags) != 1 {
-		c.Fatal(errMsg)
-	}
-	if images := getImages("*5000*/*"); len(images[0].RepoTags) != 1 {
-		c.Fatal(errMsg)
-	}
+	//incorrect number of matches returned
+	images := getImages("utest*/*")
+	c.Assert(images[0].RepoTags, checker.HasLen, 2)
+
+	images = getImages("utest")
+	c.Assert(images[0].RepoTags, checker.HasLen, 1)
+
+	images = getImages("utest*")
+	c.Assert(images[0].RepoTags, checker.HasLen, 1)
+
+	images = getImages("*5000*/*")
+	c.Assert(images[0].RepoTags, checker.HasLen, 1)
 }
 
 func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
+	// TODO Windows to Windows CI: Investigate further why this test fails.
 	testRequires(c, Network)
-	out, err := buildImage("saveandload", "FROM hello-world\nENV FOO bar", false)
-	if err != nil {
-		c.Fatal(err)
-	}
+	testRequires(c, DaemonIsLinux)
+	out, err := buildImage("saveandload", "FROM busybox\nENV FOO bar", false)
+	c.Assert(err, checker.IsNil)
 	id := strings.TrimSpace(out)
 
 	res, body, err := sockRequestRaw("GET", "/images/"+id+"/get", nil, "")
-	c.Assert(err, check.IsNil)
-	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
-
+	c.Assert(err, checker.IsNil)
 	defer body.Close()
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
-	if out, err := exec.Command(dockerBinary, "rmi", id).CombinedOutput(); err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "rmi", id)
 
 	res, loadBody, err := sockRequestRaw("POST", "/images/load", body, "application/x-tar")
-	c.Assert(err, check.IsNil)
-	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
-
+	c.Assert(err, checker.IsNil)
 	defer loadBody.Close()
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
-	inspectOut, err := exec.Command(dockerBinary, "inspect", "--format='{{ .Id }}'", id).CombinedOutput()
-	if err != nil {
-		c.Fatal(err, inspectOut)
-	}
-	if strings.TrimSpace(string(inspectOut)) != id {
-		c.Fatal("load did not work properly")
-	}
+	inspectOut := inspectField(c, id, "Id")
+	c.Assert(strings.TrimSpace(string(inspectOut)), checker.Equals, id, check.Commentf("load did not work properly"))
 }
 
 func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
-	testRequires(c, Network)
-	name := "test-api-images-delete"
-	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
-	if err != nil {
-		c.Fatal(err)
+	if daemonPlatform != "windows" {
+		testRequires(c, Network)
 	}
-	defer deleteImages(name)
+	name := "test-api-images-delete"
+	out, err := buildImage(name, "FROM busybox\nENV FOO bar", false)
+	c.Assert(err, checker.IsNil)
 	id := strings.TrimSpace(out)
 
-	if out, err := exec.Command(dockerBinary, "tag", name, "test:tag1").CombinedOutput(); err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "tag", name, "test:tag1")
 
 	status, _, err := sockRequest("DELETE", "/images/"+id, nil)
-	c.Assert(status, check.Equals, http.StatusConflict)
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusConflict)
 
 	status, _, err = sockRequest("DELETE", "/images/test:noexist", nil)
-	c.Assert(status, check.Equals, http.StatusNotFound) //Status Codes:404 – no such image
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNotFound) //Status Codes:404 – no such image
 
 	status, _, err = sockRequest("DELETE", "/images/test:tag1", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK)
 }
 
 func (s *DockerSuite) TestApiImagesHistory(c *check.C) {
-	testRequires(c, Network)
+	if daemonPlatform != "windows" {
+		testRequires(c, Network)
+	}
 	name := "test-api-images-history"
-	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
-	c.Assert(err, check.IsNil)
+	out, err := buildImage(name, "FROM busybox\nENV FOO bar", false)
+	c.Assert(err, checker.IsNil)
 
-	defer deleteImages(name)
 	id := strings.TrimSpace(out)
 
 	status, body, err := sockRequest("GET", "/images/"+id+"/history", nil)
-	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK)
 
 	var historydata []types.ImageHistory
-	if err = json.Unmarshal(body, &historydata); err != nil {
-		c.Fatalf("Error on unmarshal: %s", err)
-	}
+	err = json.Unmarshal(body, &historydata)
+	c.Assert(err, checker.IsNil, check.Commentf("Error on unmarshal"))
 
-	c.Assert(len(historydata), check.Not(check.Equals), 0)
-	c.Assert(historydata[0].Tags[0], check.Equals, "test-api-images-history:latest")
+	c.Assert(historydata, checker.Not(checker.HasLen), 0)
+	c.Assert(historydata[0].Tags[0], checker.Equals, "test-api-images-history:latest")
+}
+
+// #14846
+func (s *DockerSuite) TestApiImagesSearchJSONContentType(c *check.C) {
+	testRequires(c, Network)
+
+	res, b, err := sockRequestRaw("GET", "/images/search?term=test", nil, "application/json")
+	c.Assert(err, check.IsNil)
+	b.Close()
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+	c.Assert(res.Header.Get("Content-Type"), checker.Equals, "application/json")
 }

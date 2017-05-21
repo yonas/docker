@@ -3,18 +3,18 @@
 package operatingsystem
 
 import (
-//	"bytes"
 	"errors"
-//	"io/ioutil"
 )
 
-
+// GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
 	// TODO: Implement OS detection
-	return "", errors.New("Unable to detect OS")
+	return "", errors.New("Cannot detect OS version")
 }
 
+// IsContainerized returns true if we are running inside a container.
+// No-op on FreeBSD, always returns false.
 func IsContainerized() (bool, error) {
 	// TODO: Implement jail detection
-	return false, errors.New("Unable to check if we are in container")
+	return false, errors.New("Cannot detect if we are in container")
 }

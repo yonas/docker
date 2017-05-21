@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-DEST=$1
 BINARY_NAME="docker-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
@@ -9,16 +8,18 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 source "${MAKEDIR}/.go-autogen"
 
 if [[ "${BUILDFLAGS[@]}" =~ 'netgo ' ]]; then
-	EXTLDFLAGS_STATIC_DOCKER+=' -lnetgo'
+	EXTLDFLAGS_STATIC+=' -lnetgo'
 fi
+# gccgo require explicit flag -pthread to allow goroutines to work.
 go build -compiler=gccgo \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \
 	-gccgoflags "
 		-g
-		$EXTLDFLAGS_STATIC_DOCKER
+		$EXTLDFLAGS_STATIC
 		-Wl,--no-export-dynamic
 		-ldl
+		-pthread
 	" \
 	./docker
 
