@@ -66,7 +66,7 @@ type BaseContainer interface {
 	//
 	// errors:
 	// Systemerror - System error.
-	State() (*State, error)
+//	State() (*State, error)
 
 	// Returns the current config of the container.
 	Config() configs.Config

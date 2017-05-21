@@ -1,7 +1,7 @@
 package libcontainer
 
 import (
-	"github.com/opencontainers/runc/libcontainer/configs"
+//	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 type Factory interface {
@@ -21,7 +21,7 @@ type Factory interface {
 	// Systemerror - System error
 	//
 	// On error, any partially created container parts are cleaned up (the operation is atomic).
-	Create(id string, config *configs.Config) (Container, error)
+	//Create(id string, config *configs.Config) (Container, error)
 
 	// Load takes an ID for an existing container and returns the container information
 	// from the state.  This presents a read only view of the container.
@@ -30,7 +30,7 @@ type Factory interface {
 	// Path does not exist
 	// Container is stopped
 	// System error
-	Load(id string) (Container, error)
+	//Load(id string) (Container, error)
 
 	// StartInitialization is an internal API to libcontainer used during the reexec of the
 	// container.

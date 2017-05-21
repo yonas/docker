@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
-	"github.com/opencontainers/runc/libcontainer/label"
+	//"github.com/opencontainers/runc/libcontainer/label"
 )
 
 type zfsOptions struct {
@@ -331,10 +331,10 @@ func (d *Driver) Remove(id string) error {
 // Get returns the mountpoint for the given id after creating the target directories if necessary.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mountpoint := d.MountPath(id)
-	filesystem := d.ZfsPath(id)
+	filesystem := d.zfsPath(id)
 
 	if(d.mountedFs[filesystem] == 0) {
-		log.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, mountLabel)
+		logrus.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, mountLabel)
 
 		// Create the target directories if they don't exist
 		if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
@@ -346,7 +346,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 			return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
 		}
 	} else {
-		log.Debugf("[zfs] using already mounted fs %s", id)
+		logrus.Debugf("[zfs] using already mounted fs %s", id)
 	}
 
 	d.Lock()
@@ -359,16 +359,16 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 // Put removes the existing mountpoint for the given id if it exists.
 func (d *Driver) Put(id string) error {
 	mountpoint := d.MountPath(id)
-	name := d.ZfsPath(id)
+	name := d.zfsPath(id)
 
 	if(d.mountedFs[name] == 1) {
-		log.Debugf(`[zfs] unmount("%s")`, mountpoint)
+		logrus.Debugf(`[zfs] unmount("%s")`, mountpoint)
 
 		if err := mount.Unmount(mountpoint); err != nil {
 			return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
 		}
 	} else {
-		log.Debugf("[zfs] fs still used: %s", id)
+		logrus.Debugf("[zfs] fs still used: %s", id)
 	}
 
 	d.Lock()
