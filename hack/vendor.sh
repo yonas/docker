@@ -36,7 +36,7 @@ clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058f
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
 clone git github.com/docker/libkv c2aac5dbbaa5c872211edea7c0f32b3bd67e7410
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink bfd70f556483c008636b920dda142fdaa0d59ef9
+clone git github.com/vishvananda/netlink 8c5a115d793b6d223efadbdba04d1de197d386e8
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
